@@ -248,6 +248,10 @@ function normalizeState(body) {
     manualRuns,
     bulkRuns: String(body?.bulkRuns || ""),
     forecastMode: body?.forecastMode === "race" ? "race" : "comfort",
+    goalDistanceKm: Number.isFinite(Number(body?.goalDistanceKm))
+      ? Math.max(1, Number(body.goalDistanceKm))
+      : 21.1,
+    targetTime: String(body?.targetTime || ""),
     goalDate: String(body?.goalDate || ""),
   };
 }
@@ -257,6 +261,8 @@ function getEmptyState() {
     manualRuns: [],
     bulkRuns: "",
     forecastMode: "comfort",
+    goalDistanceKm: 21.1,
+    targetTime: "",
     goalDate: "",
   };
 }

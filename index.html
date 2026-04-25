@@ -3,17 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Strava Half Marathon Forecaster</title>
+    <title>Running Goal Forecaster</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main class="shell">
       <section class="hero">
         <p class="eyebrow">Strava-based readiness planner</p>
-        <h1>Forecast when 21K feels comfortable.</h1>
+        <h1>Forecast your next running goal.</h1>
         <p class="intro">
           Use this from your laptop or phone, keep your runs synced to your own
-          account, and forecast when a half marathon should feel comfortable.
+          account, and forecast targets like 5 km under 30 minutes or a
+          comfortable half marathon.
         </p>
       </section>
 
@@ -77,9 +78,17 @@
           <label>
             Forecast mode
             <select id="forecastMode">
-              <option value="comfort">Comfortable 21K</option>
-              <option value="race">Race-ready 21K</option>
+              <option value="comfort">Comfortable distance</option>
+              <option value="race">Race target</option>
             </select>
+          </label>
+          <label>
+            Goal distance (km)
+            <input id="goalDistance" type="number" min="1" step="0.1" value="21.1" />
+          </label>
+          <label>
+            Target time
+            <input id="targetTime" type="text" placeholder="00:30:00 for 5K under 30" />
           </label>
           <label>
             Goal date
@@ -148,7 +157,7 @@
             <p id="readinessLabel" class="metric-note">-</p>
           </article>
           <article class="metric-card">
-            <h2>Current comfortable long run</h2>
+            <h2 id="distanceMetricHeading">Goal-distance readiness</h2>
             <p id="comfortDistance" class="metric-value">-</p>
             <p id="comfortPace" class="metric-note">-</p>
           </article>

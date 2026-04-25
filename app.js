@@ -10,6 +10,8 @@ const clearRunsButton = document.getElementById("clearRunsButton");
 const manualRunsBody = document.getElementById("manualRunsBody");
 const manualRunsEmpty = document.getElementById("manualRunsEmpty");
 const forecastModeInput = document.getElementById("forecastMode");
+const goalDistanceInput = document.getElementById("goalDistance");
+const targetTimeInput = document.getElementById("targetTime");
 const goalDateInput = document.getElementById("goalDate");
 const statusText = document.getElementById("status");
 const resultsSection = document.getElementById("results");
@@ -113,6 +115,8 @@ loginButton.addEventListener("click", () => handleAuth("login"));
 logoutButton.addEventListener("click", handleLogout);
 
 forecastModeInput.addEventListener("change", () => void saveAppState());
+goalDistanceInput.addEventListener("change", () => void saveAppState());
+targetTimeInput.addEventListener("change", () => void saveAppState());
 goalDateInput.addEventListener("change", () => void saveAppState());
 bulkRunsInput.addEventListener("input", () => void saveAppState());
 authForm.addEventListener("submit", (event) => event.preventDefault());
@@ -126,6 +130,9 @@ async function initializeApp() {
   }
   if (!goalDateInput.value) {
     goalDateInput.value = formatInputDate(addDays(new Date(), 84));
+  }
+  if (!goalDistanceInput.value) {
+    goalDistanceInput.value = "21.1";
   }
   renderManualRuns();
   updateAccountUI();
@@ -273,6 +280,8 @@ function getCurrentState() {
     })),
     bulkRuns: bulkRunsInput.value,
     forecastMode: forecastModeInput.value,
+    goalDistanceKm: Number.parseFloat(goalDistanceInput.value) || 21.1,
+    targetTime: targetTimeInput.value,
     goalDate: goalDateInput.value,
   };
 }
@@ -289,12 +298,19 @@ function applyState(state) {
 
   bulkRunsInput.value = state?.bulkRuns || "";
   forecastModeInput.value = state?.forecastMode || "comfort";
+  goalDistanceInput.value = state?.goalDistanceKm || "21.1";
+  targetTimeInput.value = state?.targetTime || "";
   goalDateInput.value = state?.goalDate || "";
   renderManualRuns();
 }
 
 function hasAnyData(state) {
-  return Boolean(state?.manualRuns?.length || state?.bulkRuns?.trim());
+  return Boolean(
+    state?.manualRuns?.length ||
+      state?.bulkRuns?.trim() ||
+      state?.goalDistanceKm ||
+      state?.targetTime?.trim(),
+  );
 }
 
 async function pushStateToCloud(state) {
@@ -334,8 +350,20 @@ async function apiFetch(url, options = {}) {
 
 function runAnalysis(activities, successMessage) {
   setStatus("Calculating running readiness...");
+  const goalDistanceKm = Number.parseFloat(goalDistanceInput.value);
+  const targetTimeSeconds = parseTargetTimeToSeconds(targetTimeInput.value);
+
+  if (!Number.isFinite(goalDistanceKm) || goalDistanceKm <= 0) {
+    throw new Error("Enter a valid goal distance.");
+  }
+  if (targetTimeInput.value.trim() && !targetTimeSeconds) {
+    throw new Error("Enter target time as mm:ss or hh:mm:ss, for example 30:00.");
+  }
+
   const analysis = analyzeActivities(activities, {
     mode: forecastModeInput.value,
+    goalDistanceKm,
+    targetTimeSeconds,
     goalDate: goalDateInput.value ? parseDate(goalDateInput.value) : null,
   });
   renderAnalysis(analysis);
@@ -577,6 +605,21 @@ function parseDurationToSeconds(value) {
   return total > 0 ? total : null;
 }
 
+function parseTargetTimeToSeconds(value) {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  const duration = parseDurationToSeconds(cleaned);
+  if (duration) {
+    return duration;
+  }
+
+  const minutes = Number.parseFloat(cleaned);
+  return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes * 60) : null;
+}
+
 function inferSecondsFromPace(distanceKm, paceValue) {
   if (!distanceKm || !paceValue) {
     return null;
@@ -641,29 +684,47 @@ function analyzeActivities(activities, options) {
   );
   const paceTrendSeconds = getPaceTrendSeconds(recent6Weeks);
   const mode = options.mode === "race" ? "race" : "comfort";
-  const targetConfig = getTargetConfig(mode);
+  const targetConfig = getTargetConfig({
+    mode,
+    goalDistanceKm: options.goalDistanceKm,
+    targetTimeSeconds: options.targetTimeSeconds,
+  });
+  const bestPaceSecPerKm = getBestRelevantPace(recent12Weeks, targetConfig.goalDistanceKm);
   const readinessScore = getReadinessScore({
     consistencyRatio,
     comfortableLongRunKm,
     avgWeeklyKm,
     paceTrendSeconds,
     missedWeeks,
-    mode,
+    targetConfig,
+    bestPaceSecPerKm,
   });
   const readinessLabel = getReadinessLabel(readinessScore, mode);
   const requiredLongRunKm = targetConfig.longRunKm;
   const requiredWeeklyKm = targetConfig.weeklyKm;
   const currentLongRunGap = Math.max(0, requiredLongRunKm - comfortableLongRunKm);
   const currentVolumeGap = Math.max(0, requiredWeeklyKm - avgWeeklyKm);
+  const currentPaceGap =
+    targetConfig.targetPaceSecPerKm && bestPaceSecPerKm
+      ? Math.max(0, bestPaceSecPerKm - targetConfig.targetPaceSecPerKm)
+      : 0;
   const longRunGainPerWeek = Math.max(0.8, Math.min(2, comfortableLongRunKm * 0.09 || 0.8));
   const weeklyVolumeGain = Math.max(2, Math.min(6, avgWeeklyKm * 0.1 || 2));
   const weeksForLongRun = Math.ceil(currentLongRunGap / longRunGainPerWeek);
   const weeksForVolume = Math.ceil(currentVolumeGap / weeklyVolumeGain);
+  const weeksForPace = targetConfig.targetPaceSecPerKm
+    ? bestPaceSecPerKm
+      ? Math.ceil(currentPaceGap / 5)
+      : 3
+    : 0;
   const consistencyPenalty = consistencyRatio >= 0.75 ? 0 : consistencyRatio >= 0.5 ? 1 : 2;
   const missedWeekPenalty = Math.min(2, missedWeeks);
   const pacePenalty = paceTrendSeconds <= -8 ? -1 : paceTrendSeconds >= 10 ? 1 : 0;
   const baseWeeks =
-    Math.max(weeksForLongRun, weeksForVolume, 1) + consistencyPenalty + missedWeekPenalty + pacePenalty;
+    Math.max(weeksForLongRun, weeksForVolume, weeksForPace, 1) +
+    consistencyPenalty +
+    missedWeekPenalty +
+    pacePenalty;
   const forecastDate = addDays(today, baseWeeks * 7);
   const confidence = getConfidenceLabel({
     consistencyRatio,
@@ -676,11 +737,12 @@ function analyzeActivities(activities, options) {
     today,
     forecastDate,
     readinessScore,
-    mode,
+    targetConfig,
   });
 
   return {
     mode,
+    targetConfig,
     runCount: activities.length,
     forecastDate,
     confidence,
@@ -690,6 +752,7 @@ function analyzeActivities(activities, options) {
     averagePaceSecPerKm,
     avgWeeklyKm,
     bestLongRun,
+    bestPaceSecPerKm,
     consistencyRatio,
     goalAssessment,
     weeklyTargets: buildWeeklyTargets({
@@ -699,34 +762,56 @@ function analyzeActivities(activities, options) {
       averagePaceSecPerKm,
       paceTrendSeconds,
       readinessScore,
-      mode,
+      targetConfig,
     }),
     insights: buildInsights({
       avgWeeklyKm,
       consistencyRatio,
       comfortableLongRunKm,
       bestLongRun,
+      bestPaceSecPerKm,
       forecastDate,
       baseWeeks,
       paceTrendSeconds,
-      mode,
+      targetConfig,
     }),
     notes: buildNotes({
       recent12Weeks,
       recent8Weeks,
       avgWeeklyKm,
       comfortableLongRunKm,
-      mode,
+      targetConfig,
       goalDate: options.goalDate,
     }),
     charts: buildChartSeries(weeklyBuckets),
   };
 }
 
-function getTargetConfig(mode) {
-  return mode === "race"
-    ? { longRunKm: 19, weeklyKm: 34 }
-    : { longRunKm: 18, weeklyKm: 28 };
+function getTargetConfig({ mode, goalDistanceKm, targetTimeSeconds }) {
+  const goalDistance = clamp(Number(goalDistanceKm) || 21.1, 1, 100);
+  const isRaceGoal = mode === "race" || Boolean(targetTimeSeconds);
+  const longRunMultiplier = isRaceGoal
+    ? goalDistance <= 10
+      ? 1.2
+      : 0.9
+    : goalDistance <= 10
+      ? 1.05
+      : 0.85;
+  const weeklyMultiplier = isRaceGoal ? 1.6 : 1.35;
+  const minimumWeeklyKm = goalDistance <= 10 ? (isRaceGoal ? 14 : 10) : isRaceGoal ? 24 : 18;
+  const longRunKm = clamp(
+    goalDistance * longRunMultiplier,
+    Math.min(goalDistance, 3),
+    goalDistance <= 10 ? goalDistance * 1.35 : goalDistance,
+  );
+
+  return {
+    goalDistanceKm: goalDistance,
+    targetTimeSeconds,
+    targetPaceSecPerKm: targetTimeSeconds ? targetTimeSeconds / goalDistance : null,
+    longRunKm: round1(longRunKm),
+    weeklyKm: round1(clamp(Math.max(minimumWeeklyKm, goalDistance * weeklyMultiplier), 8, 70)),
+  };
 }
 
 function getReadinessScore({
@@ -735,19 +820,57 @@ function getReadinessScore({
   avgWeeklyKm,
   paceTrendSeconds,
   missedWeeks,
-  mode,
+  targetConfig,
+  bestPaceSecPerKm,
 }) {
-  const target = getTargetConfig(mode);
-  const longRunScore = clamp((comfortableLongRunKm / target.longRunKm) * 38, 0, 38);
-  const volumeScore = clamp((avgWeeklyKm / target.weeklyKm) * 30, 0, 30);
-  const consistencyScore = clamp(consistencyRatio * 22, 0, 22);
-  const trendScore =
-    paceTrendSeconds <= -10 ? 10 : paceTrendSeconds <= -3 ? 7 : paceTrendSeconds < 8 ? 5 : 2;
+  const hasTimeTarget = Boolean(targetConfig.targetPaceSecPerKm);
+  const longRunMax = hasTimeTarget ? 30 : 38;
+  const volumeMax = hasTimeTarget ? 24 : 30;
+  const consistencyMax = hasTimeTarget ? 18 : 22;
+  const paceMax = hasTimeTarget ? 22 : 0;
+  const trendMax = hasTimeTarget ? 6 : 10;
+  const longRunScore = clamp((comfortableLongRunKm / targetConfig.longRunKm) * longRunMax, 0, longRunMax);
+  const volumeScore = clamp((avgWeeklyKm / targetConfig.weeklyKm) * volumeMax, 0, volumeMax);
+  const consistencyScore = clamp(consistencyRatio * consistencyMax, 0, consistencyMax);
+  const paceScore = hasTimeTarget
+    ? getPaceScore(bestPaceSecPerKm, targetConfig.targetPaceSecPerKm, paceMax)
+    : 0;
+  const trendScore = hasTimeTarget
+    ? paceTrendSeconds <= -10
+      ? trendMax
+      : paceTrendSeconds <= -3
+        ? 4
+        : paceTrendSeconds < 8
+          ? 3
+          : 1
+    : paceTrendSeconds <= -10
+      ? 10
+      : paceTrendSeconds <= -3
+        ? 7
+        : paceTrendSeconds < 8
+          ? 5
+          : 2;
   const missedPenalty = missedWeeks * 3;
   return Math.max(
     1,
-    Math.min(100, Math.round(longRunScore + volumeScore + consistencyScore + trendScore - missedPenalty)),
+    Math.min(
+      100,
+      Math.round(longRunScore + volumeScore + consistencyScore + paceScore + trendScore - missedPenalty),
+    ),
   );
+}
+
+function getPaceScore(bestPaceSecPerKm, targetPaceSecPerKm, maxScore) {
+  if (!bestPaceSecPerKm || !targetPaceSecPerKm) {
+    return maxScore * 0.35;
+  }
+
+  const gap = bestPaceSecPerKm - targetPaceSecPerKm;
+  if (gap <= 0) {
+    return maxScore;
+  }
+
+  return clamp(maxScore - gap * 0.45, 0, maxScore);
 }
 
 function getReadinessLabel(score, mode) {
@@ -763,7 +886,7 @@ function getReadinessLabel(score, mode) {
   return "Early build phase. Focus on consistency first.";
 }
 
-function assessGoalDate({ goalDate, today, forecastDate, readinessScore, mode }) {
+function assessGoalDate({ goalDate, today, forecastDate, readinessScore, targetConfig }) {
   if (!goalDate) {
     return "Add a goal date above to see whether your current training trend gets you there in time.";
   }
@@ -771,17 +894,18 @@ function assessGoalDate({ goalDate, today, forecastDate, readinessScore, mode })
   const targetDate = startOfDay(goalDate);
   const weeksToGoal = Math.max(0, Math.ceil(daysBetween(today, targetDate) / 7));
   const weeksToForecast = Math.ceil(daysBetween(today, forecastDate) / 7);
+  const goalLabel = getGoalLabel(targetConfig);
 
   if (targetDate < today) {
     return "That goal date is already in the past, so choose a future date to compare against your forecast.";
   }
 
   if (targetDate >= forecastDate) {
-    return `${mode === "race" ? "Race-ready" : "Comfortable"} 21K by ${formatDate(targetDate)} looks realistic. You have about ${weeksToGoal} week${weeksToGoal === 1 ? "" : "s"} and your current forecast lands on ${formatDate(forecastDate)}.`;
+    return `${goalLabel} by ${formatDate(targetDate)} looks realistic. You have about ${weeksToGoal} week${weeksToGoal === 1 ? "" : "s"} and your current forecast lands on ${formatDate(forecastDate)}.`;
   }
 
   const gap = Math.max(1, weeksToForecast - weeksToGoal);
-  return `${formatDate(targetDate)} looks ambitious right now. You are roughly ${gap} week${gap === 1 ? "" : "s"} short of the current ${mode === "race" ? "race-ready" : "comfort"} forecast, and your readiness score is ${readinessScore}/100.`;
+  return `${formatDate(targetDate)} looks ambitious for ${goalLabel}. You are roughly ${gap} week${gap === 1 ? "" : "s"} short of the current forecast, and your readiness score is ${readinessScore}/100.`;
 }
 
 function buildWeeklyTargets({
@@ -791,14 +915,16 @@ function buildWeeklyTargets({
   averagePaceSecPerKm,
   paceTrendSeconds,
   readinessScore,
-  mode,
+  targetConfig,
 }) {
   const targets = [];
   let currentWeeklyKm = Math.max(avgWeeklyKm, 10);
   let currentLongRunKm = Math.max(comfortableLongRunKm, 6);
-  const target = getTargetConfig(mode);
-  const weeklyCap = target.weeklyKm + (mode === "race" ? 6 : 4);
-  const longRunCap = mode === "race" ? 21 : 20;
+  const weeklyCap = targetConfig.weeklyKm + (targetConfig.targetTimeSeconds ? 6 : 4);
+  const longRunCap =
+    targetConfig.goalDistanceKm <= 10
+      ? targetConfig.goalDistanceKm * 1.35
+      : Math.min(targetConfig.goalDistanceKm, targetConfig.longRunKm + 3);
 
   for (let index = 0; index < 4; index += 1) {
     const isCutback = index === 3;
@@ -823,7 +949,7 @@ function buildWeeklyTargets({
         averagePaceSecPerKm,
         paceTrendSeconds,
         isCutback,
-        mode,
+        targetConfig,
       }),
     });
   }
@@ -831,14 +957,17 @@ function buildWeeklyTargets({
   return targets;
 }
 
-function buildFocusLabel({ longRunKm, averagePaceSecPerKm, paceTrendSeconds, isCutback, mode }) {
+function buildFocusLabel({ longRunKm, averagePaceSecPerKm, paceTrendSeconds, isCutback, targetConfig }) {
   if (isCutback) {
     return "Cutback week: keep it light, absorb the training, and arrive fresh.";
   }
-  if (longRunKm < 12) {
+  if (targetConfig.targetPaceSecPerKm) {
+    return `Keep most runs easy, then add controlled work near ${formatPace(targetConfig.targetPaceSecPerKm)} /km.`;
+  }
+  if (longRunKm < Math.max(8, targetConfig.goalDistanceKm * 0.6)) {
     return "Easy effort, relaxed breathing, and smooth recovery the next day.";
   }
-  if (mode === "race" && longRunKm >= 16) {
+  if (targetConfig.goalDistanceKm >= 15 && longRunKm >= 16) {
     return `Finish the last 3 km with control around ${formatPace((averagePaceSecPerKm || 360) - 8)} /km if it feels natural.`;
   }
   if (paceTrendSeconds <= -8) {
@@ -852,17 +981,18 @@ function buildInsights({
   consistencyRatio,
   comfortableLongRunKm,
   bestLongRun,
+  bestPaceSecPerKm,
   forecastDate,
   baseWeeks,
   paceTrendSeconds,
-  mode,
+  targetConfig,
 }) {
   const insights = [
     `Recent average volume is ${formatKm(avgWeeklyKm)} per week.`,
-    `${mode === "race" ? "Race-readiness" : "Comfort"} mode is active, so the forecast thresholds are tuned accordingly.`,
+    `Goal is ${getGoalLabel(targetConfig)}, so the forecast thresholds are tuned to that distance and time.`,
     `Your comfortable long-run estimate is ${formatKm(comfortableLongRunKm)}, which is more conservative than a one-off peak run.`,
     `Consistency across the last 12 weeks is ${Math.round(consistencyRatio * 100)}%.`,
-    `At your current trend, a ${mode === "race" ? "race-ready" : "comfortable"} 21K looks realistic in about ${baseWeeks} week${baseWeeks === 1 ? "" : "s"}, landing around ${formatDate(forecastDate)}.`,
+    `At your current trend, this goal looks realistic in about ${baseWeeks} week${baseWeeks === 1 ? "" : "s"}, landing around ${formatDate(forecastDate)}.`,
   ];
 
   if (bestLongRun) {
@@ -870,6 +1000,12 @@ function buildInsights({
       3,
       0,
       `Your strongest recent long run was ${formatKm(bestLongRun.distanceKm)} on ${formatDate(bestLongRun.date)}.`,
+    );
+  }
+
+  if (targetConfig.targetPaceSecPerKm) {
+    insights.push(
+      `Target pace is ${formatPace(targetConfig.targetPaceSecPerKm)} /km. Your best relevant recent pace is ${bestPaceSecPerKm ? `${formatPace(bestPaceSecPerKm)} /km` : "not available yet"}.`,
     );
   }
 
@@ -882,15 +1018,15 @@ function buildInsights({
   return insights;
 }
 
-function buildNotes({ recent12Weeks, recent8Weeks, avgWeeklyKm, comfortableLongRunKm, mode, goalDate }) {
+function buildNotes({ recent12Weeks, recent8Weeks, avgWeeklyKm, comfortableLongRunKm, targetConfig, goalDate }) {
   const notes = [
     "This model uses only the last 12 weeks so it reflects current fitness more than old peak form.",
-    '"Comfortable" means enough long-run durability plus enough weekly volume, not just surviving one 21K attempt.',
+    "Distance readiness means enough long-run durability plus enough weekly volume, not just one isolated effort.",
     "The 4-week planner includes a cutback week to reduce the chance of overreaching.",
   ];
 
-  if (mode === "race") {
-    notes.push("Race mode asks for slightly higher weekly volume and long-run durability than comfort mode.");
+  if (targetConfig.targetTimeSeconds) {
+    notes.push("Target-time goals also compare your recent pace evidence against the pace needed for the goal.");
   }
   if (recent8Weeks.length < 6) {
     notes.push("There are relatively few runs in the last 8 weeks, so the forecast is more fragile than usual.");
@@ -957,16 +1093,48 @@ function getPaceTrendSeconds(runs) {
   return round1(secondHalf - firstHalf);
 }
 
+function getBestRelevantPace(runs, goalDistanceKm) {
+  const minimumDistance = Math.max(2, goalDistanceKm * 0.6);
+  const relevantRuns = runs
+    .filter((run) => run.movingSeconds && run.distanceKm >= minimumDistance)
+    .map((run) => run.movingSeconds / run.distanceKm);
+
+  if (relevantRuns.length) {
+    return Math.min(...relevantRuns);
+  }
+
+  const fallbackRuns = runs
+    .filter((run) => run.movingSeconds && run.distanceKm >= 2)
+    .map((run) => run.movingSeconds / run.distanceKm);
+
+  return fallbackRuns.length ? Math.min(...fallbackRuns) : null;
+}
+
+function getGoalLabel(targetConfig) {
+  const distanceLabel = `${round1(targetConfig.goalDistanceKm)} km`;
+  if (targetConfig.targetTimeSeconds) {
+    return `${distanceLabel} under ${formatCompactDuration(targetConfig.targetTimeSeconds)}`;
+  }
+
+  return `comfortable ${distanceLabel}`;
+}
+
 function renderAnalysis(analysis) {
-  document.getElementById("forecastHeading").textContent =
-    analysis.mode === "race" ? "Race-ready 21K forecast" : "Comfortable 21K forecast";
+  document.getElementById("forecastHeading").textContent = `${getGoalLabel(analysis.targetConfig)} forecast`;
   document.getElementById("forecastDate").textContent = formatDate(analysis.forecastDate);
   document.getElementById("forecastConfidence").textContent = analysis.confidence;
   document.getElementById("readinessScore").textContent = `${analysis.readinessScore}/100`;
   document.getElementById("readinessLabel").textContent = analysis.readinessLabel;
-  document.getElementById("comfortDistance").textContent = formatKm(analysis.comfortableLongRunKm);
+  document.getElementById("distanceMetricHeading").textContent = analysis.targetConfig.targetTimeSeconds
+    ? "Target pace"
+    : "Goal-distance readiness";
+  document.getElementById("comfortDistance").textContent = analysis.targetConfig.targetTimeSeconds
+    ? `${formatPace(analysis.targetConfig.targetPaceSecPerKm)} /km`
+    : formatKm(analysis.comfortableLongRunKm);
   document.getElementById("comfortPace").textContent = analysis.averagePaceSecPerKm
-    ? `Typical pace around ${formatPace(analysis.averagePaceSecPerKm)} /km`
+    ? analysis.targetConfig.targetTimeSeconds
+      ? `Recent best relevant pace ${analysis.bestPaceSecPerKm ? formatPace(analysis.bestPaceSecPerKm) : "-"} /km`
+      : `Typical pace around ${formatPace(analysis.averagePaceSecPerKm)} /km`
     : "Pace unavailable from data";
   document.getElementById("weeklyVolume").textContent = `${formatKm(analysis.avgWeeklyKm)} / week`;
   document.getElementById("consistency").textContent = `${Math.round(analysis.consistencyRatio * 100)}% consistent weeks`;
@@ -1098,6 +1266,18 @@ function formatDuration(totalSeconds) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function formatCompactDuration(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function formatInputDate(date) {
