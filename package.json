@@ -1,0 +1,12 @@
+{
+  "name": "strava-half-forecaster",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Half marathon readiness forecaster with account-backed sync.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
