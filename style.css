@@ -35,6 +35,37 @@ body {
   margin-bottom: 28px;
 }
 
+.app-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.nav-chip {
+  width: auto;
+  min-width: 120px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.nav-chip.active {
+  background: linear-gradient(135deg, var(--accent) 0%, #ec8c43 100%);
+  color: white;
+}
+
+.app-view {
+  display: none;
+}
+
+.app-view.active {
+  display: block;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   color: var(--accent);
@@ -93,6 +124,10 @@ li {
   margin-bottom: 24px;
 }
 
+.secondary-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .dashboard-card {
   min-height: 156px;
   padding: 20px;
@@ -127,6 +162,19 @@ li {
   font-family: "Segoe UI", Tahoma, sans-serif;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.mini-card {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+}
+
+.mini-number {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1;
 }
 
 .upload-panel {
@@ -181,12 +229,37 @@ li {
   margin-bottom: 24px;
 }
 
+.calorie-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0 0;
+}
+
 .manual-header,
 .runs-header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: start;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mode-badge {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .settings-grid {
@@ -235,6 +308,17 @@ li {
   grid-column: span 2;
 }
 
+.form-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  grid-column: span 2;
+}
+
+.hidden-button {
+  display: none;
+}
+
 input[type="date"],
 input[type="email"],
 input[type="number"],
@@ -274,6 +358,12 @@ textarea {
 
 .manual-runs-table {
   margin-top: 10px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .empty-state {
@@ -375,6 +465,11 @@ button:hover {
   line-height: 1.6;
 }
 
+.empty-panel {
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
 .chart-block + .chart-block {
   margin-top: 20px;
 }
@@ -462,6 +557,11 @@ th {
     grid-template-columns: 1fr 1fr;
   }
 
+  .secondary-grid,
+  .calorie-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .summary-grid,
   .two-col,
   .manual-grid,
@@ -483,11 +583,18 @@ th {
   .summary-grid,
   .two-col,
   .manual-grid,
+  .calorie-cards,
   .auth-form,
   .profile-grid,
   .settings-grid,
   .manual-form {
     grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    grid-column: auto;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .wide-field {
@@ -500,7 +607,8 @@ th {
 
   .manual-header,
   .runs-header,
-  .auth-actions {
+  .auth-actions,
+  .header-actions {
     flex-direction: column;
   }
 }

@@ -8,6 +8,11 @@ const runDistanceInput = document.getElementById("runDistance");
 const runTimeInput = document.getElementById("runTime");
 const activityCaloriesInput = document.getElementById("activityCalories");
 const activityNotesInput = document.getElementById("activityNotes");
+const addRunButton = document.getElementById("addRunButton");
+const cancelEditButton = document.getElementById("cancelEditButton");
+const manualPanelHeading = document.getElementById("manualPanelHeading");
+const manualPanelHint = document.getElementById("manualPanelHint");
+const editStateBadge = document.getElementById("editStateBadge");
 const bulkRunsInput = document.getElementById("bulkRuns");
 const clearRunsButton = document.getElementById("clearRunsButton");
 const manualRunsBody = document.getElementById("manualRunsBody");
@@ -25,6 +30,9 @@ const registerButton = document.getElementById("registerButton");
 const loginButton = document.getElementById("loginButton");
 const logoutButton = document.getElementById("logoutButton");
 const accountStatus = document.getElementById("accountStatus");
+const forecastEmptySection = document.getElementById("forecastEmpty");
+const navButtons = [...document.querySelectorAll("[data-view-target]")];
+const appViews = [...document.querySelectorAll("[data-view]")];
 const profileInputs = {
   name: document.getElementById("profileName"),
   age: document.getElementById("profileAge"),
@@ -45,11 +53,19 @@ const dashboardElements = {
   recent: document.getElementById("dashboardRecent"),
   next: document.getElementById("dashboardNext"),
   calorieSummary: document.getElementById("calorieSummary"),
+  maintenance: document.getElementById("dashboardMaintenance"),
+  burn: document.getElementById("dashboardBurn"),
+  profile: document.getElementById("dashboardProfile"),
+  calorieTargetCard: document.getElementById("calorieTargetCard"),
+  calorieMaintenanceCard: document.getElementById("calorieMaintenanceCard"),
+  proteinCard: document.getElementById("proteinCard"),
 };
 
 const activities = [];
 const manualRuns = activities;
 let latestAnalysis = null;
+let editingActivityId = null;
+let activeView = "dashboard";
 const LOCAL_STATE_KEY = "strava-half-forecaster-state-v2";
 const SESSION_KEY = "strava-half-forecaster-session-v1";
 const authState = {
@@ -99,25 +115,37 @@ manualForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  activities.push(
-    createActivity({
-      type,
-      date,
-      distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
-      movingSeconds,
-      calories: Number.isFinite(calories) ? calories : null,
-      notes,
-      source: "manual",
-      verified: false,
-    }),
-  );
+  const nextActivity = createActivity({
+    type,
+    date,
+    distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
+    movingSeconds,
+    calories: Number.isFinite(calories) ? calories : null,
+    notes,
+    source: "manual",
+    verified: false,
+  });
+
+  const wasEditing = Boolean(editingActivityId);
+  if (wasEditing) {
+    const existing = activities.find((activity) => activity.id === editingActivityId);
+    if (existing) {
+      Object.assign(existing, nextActivity, { id: editingActivityId });
+    }
+  } else {
+    activities.push(nextActivity);
+  }
+
   sortManualRuns();
   renderManualRuns();
   renderDashboard();
   await saveAppState();
-  manualForm.reset();
-  runDateInput.value = formatInputDate(new Date());
-  setStatus(`Added ${formatActivityType(type)} on ${date}.`);
+  resetActivityForm();
+  setStatus(
+    wasEditing
+      ? `Updated ${formatActivityType(type)} on ${date}.`
+      : `Added ${formatActivityType(type)} on ${date}.`,
+  );
 });
 
 useManualButton.addEventListener("click", () => {
@@ -150,6 +178,21 @@ manualRunsBody.addEventListener("click", async (event) => {
   }
 
   const index = Number(button.dataset.index);
+  const action = button.dataset.action || "remove";
+  const activity = activities[index];
+  if (!activity) {
+    return;
+  }
+
+  if (action === "edit") {
+    startEditingActivity(activity);
+    return;
+  }
+
+  if (editingActivityId === activity.id) {
+    resetActivityForm();
+  }
+
   activities.splice(index, 1);
   renderManualRuns();
   renderDashboard();
@@ -160,6 +203,11 @@ manualRunsBody.addEventListener("click", async (event) => {
 registerButton.addEventListener("click", () => handleAuth("register"));
 loginButton.addEventListener("click", () => handleAuth("login"));
 logoutButton.addEventListener("click", handleLogout);
+cancelEditButton.addEventListener("click", resetActivityForm);
+
+for (const button of navButtons) {
+  button.addEventListener("click", () => setActiveView(button.dataset.viewTarget));
+}
 
 forecastModeInput.addEventListener("change", () => {
   renderDashboard();
@@ -194,15 +242,14 @@ initializeApp();
 
 async function initializeApp() {
   loadLocalState();
-  if (!runDateInput.value) {
-    runDateInput.value = formatInputDate(new Date());
-  }
   if (!goalDateInput.value) {
     goalDateInput.value = formatInputDate(addDays(new Date(), 84));
   }
   if (!goalDistanceInput.value) {
     goalDistanceInput.value = "21.1";
   }
+  resetActivityForm();
+  setActiveView(activeView);
   renderManualRuns();
   renderDashboard();
   updateAccountUI();
@@ -463,18 +510,59 @@ function runAnalysis(activities, successMessage) {
   latestAnalysis = analysis;
   renderAnalysis(analysis);
   renderDashboard();
-  resultsSection.classList.remove("hidden");
+  setActiveView("forecast");
   setStatus(successMessage);
 }
 
 function handleAnalysisError(error, fallback) {
   console.error(error);
-  resultsSection.classList.add("hidden");
+  latestAnalysis = null;
+  syncForecastVisibility();
   setStatus(error.message || fallback);
 }
 
 function setStatus(message) {
   statusText.textContent = message;
+}
+
+function setActiveView(viewName) {
+  activeView = viewName;
+  for (const button of navButtons) {
+    button.classList.toggle("active", button.dataset.viewTarget === viewName);
+  }
+  for (const view of appViews) {
+    view.classList.toggle("active", view.dataset.view === viewName);
+  }
+}
+
+function startEditingActivity(activity) {
+  editingActivityId = activity.id;
+  activityTypeInput.value = activity.type;
+  runDateInput.value = formatInputDate(activity.date);
+  runDistanceInput.value = activity.distanceKm || "";
+  runTimeInput.value = formatDuration(activity.movingSeconds);
+  activityCaloriesInput.value = activity.calories || "";
+  activityNotesInput.value = activity.notes || "";
+  addRunButton.textContent = "Save changes";
+  cancelEditButton.classList.remove("hidden-button");
+  editStateBadge.textContent = `Editing ${formatActivityType(activity.type)}`;
+  manualPanelHeading.textContent = "Edit activity";
+  manualPanelHint.textContent = "Update the activity, save changes, or cancel to go back to new activity mode.";
+  setActiveView("log");
+  runDateInput.focus();
+}
+
+function resetActivityForm() {
+  editingActivityId = null;
+  manualForm.reset();
+  runDateInput.value = formatInputDate(new Date());
+  activityTypeInput.value = "run";
+  addRunButton.textContent = "Add activity";
+  cancelEditButton.classList.add("hidden-button");
+  editStateBadge.textContent = "New activity";
+  manualPanelHeading.textContent = "Log activity manually";
+  manualPanelHint.innerHTML =
+    'Add workouts one at a time. Running activities power the current forecast. <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>';
 }
 
 function getProfileState() {
@@ -646,7 +734,12 @@ function renderManualRuns() {
           <td>${run.distanceKm ? formatKm(run.distanceKm) : "-"}</td>
           <td>${formatDuration(run.movingSeconds)}</td>
           <td>${run.calories ? `${Math.round(run.calories)} kcal` : "-"}</td>
-          <td><button type="button" class="secondary-button" data-index="${index}">Remove</button></td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="secondary-button" data-action="edit" data-index="${index}">Edit</button>
+              <button type="button" class="secondary-button" data-action="remove" data-index="${index}">Remove</button>
+            </div>
+          </td>
         </tr>
       `,
     )
@@ -685,11 +778,25 @@ function renderDashboard() {
     dashboardElements.calories.textContent = `${caloriePlan.targetCalories} kcal`;
     dashboardElements.protein.textContent = `${caloriePlan.proteinGrams} g protein/day`;
     dashboardElements.calorieSummary.textContent = `${caloriePlan.targetCalories} kcal | ${caloriePlan.proteinGrams} g protein`;
+    dashboardElements.maintenance.textContent = `${caloriePlan.maintenance} kcal`;
+    dashboardElements.burn.textContent = `${Math.round(getEstimatedWeeklyBurn())} kcal`;
+    dashboardElements.profile.textContent = profile.name || "Ready";
+    dashboardElements.calorieTargetCard.textContent = `${caloriePlan.targetCalories} kcal`;
+    dashboardElements.calorieMaintenanceCard.textContent = `${caloriePlan.maintenance} kcal`;
+    dashboardElements.proteinCard.textContent = `${caloriePlan.proteinGrams} g`;
   } else {
     dashboardElements.calories.textContent = "-";
     dashboardElements.protein.textContent = "Complete age, sex, height, and weight.";
     dashboardElements.calorieSummary.textContent = "Profile incomplete";
+    dashboardElements.maintenance.textContent = "-";
+    dashboardElements.burn.textContent = `${Math.round(getEstimatedWeeklyBurn())} kcal`;
+    dashboardElements.profile.textContent = `${getCompletedProfileFields(profile)}/8`;
+    dashboardElements.calorieTargetCard.textContent = "-";
+    dashboardElements.calorieMaintenanceCard.textContent = "-";
+    dashboardElements.proteinCard.textContent = "-";
   }
+
+  syncForecastVisibility();
 }
 
 function calculateCaloriePlan(profile) {
@@ -727,6 +834,41 @@ function calculateCaloriePlan(profile) {
 function getActivitiesThisWeek() {
   const weekStart = getWeekStart(new Date());
   return activities.filter((activity) => activity.date >= weekStart);
+}
+
+function getEstimatedWeeklyBurn() {
+  return getActivitiesThisWeek().reduce((sum, activity) => {
+    if (activity.calories) {
+      return sum + activity.calories;
+    }
+
+    if (activity.type === "run" && activity.distanceKm) {
+      return sum + activity.distanceKm * 62;
+    }
+    if (activity.type === "walk" && activity.distanceKm) {
+      return sum + activity.distanceKm * 40;
+    }
+    return sum + activity.movingSeconds / 60 * 6;
+  }, 0);
+}
+
+function getCompletedProfileFields(profile) {
+  return [
+    profile.name,
+    profile.age,
+    profile.sex,
+    profile.heightCm,
+    profile.weightKg,
+    profile.goalWeightKg,
+    profile.activityLevel,
+    profile.mainGoal,
+  ].filter(Boolean).length;
+}
+
+function syncForecastVisibility() {
+  const hasAnalysis = Boolean(latestAnalysis);
+  resultsSection.classList.toggle("hidden", !hasAnalysis);
+  forecastEmptySection.classList.toggle("hidden", hasAnalysis);
 }
 
 function getActivityStreak() {
@@ -1459,6 +1601,7 @@ function renderAnalysis(analysis) {
   renderChart("longRunChart", analysis.charts, "longRunKm", "green");
   renderList("insightsList", analysis.insights);
   renderList("notesList", analysis.notes);
+  syncForecastVisibility();
 }
 
 function renderChart(id, rows, key, variant) {

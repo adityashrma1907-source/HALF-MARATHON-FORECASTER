@@ -18,314 +18,373 @@
         </p>
       </section>
 
-      <section class="dashboard-grid">
-        <article class="dashboard-card main-card">
-          <p class="card-kicker">Current goal</p>
-          <h2 id="dashboardGoal">Comfortable 21.1 km</h2>
-          <p id="dashboardForecast" class="dashboard-note">Add activities and analyze to see your forecast.</p>
-        </article>
-        <article class="dashboard-card">
-          <p class="card-kicker">Calories</p>
-          <p id="dashboardCalories" class="dashboard-number">-</p>
-          <p id="dashboardProtein" class="dashboard-note">Complete your profile.</p>
-        </article>
-        <article class="dashboard-card">
-          <p class="card-kicker">This week</p>
-          <p id="dashboardWeek" class="dashboard-number">0 km</p>
-          <p id="dashboardStreak" class="dashboard-note">0 day streak</p>
-        </article>
-        <article class="dashboard-card">
-          <p class="card-kicker">Recent activity</p>
-          <p id="dashboardRecent" class="dashboard-number">-</p>
-          <p id="dashboardNext" class="dashboard-note">Next target appears after analysis.</p>
-        </article>
+      <nav class="app-nav" aria-label="App sections">
+        <button type="button" class="nav-chip active" data-view-target="dashboard">Dashboard</button>
+        <button type="button" class="nav-chip" data-view-target="log">Log</button>
+        <button type="button" class="nav-chip" data-view-target="forecast">Forecast</button>
+        <button type="button" class="nav-chip" data-view-target="profile">Profile</button>
+      </nav>
+
+      <section class="app-view active" data-view="dashboard">
+        <section class="dashboard-grid">
+          <article class="dashboard-card main-card">
+            <p class="card-kicker">Current goal</p>
+            <h2 id="dashboardGoal">Comfortable 21.1 km</h2>
+            <p id="dashboardForecast" class="dashboard-note">Add activities and analyze to see your forecast.</p>
+          </article>
+          <article class="dashboard-card">
+            <p class="card-kicker">Calories</p>
+            <p id="dashboardCalories" class="dashboard-number">-</p>
+            <p id="dashboardProtein" class="dashboard-note">Complete your profile.</p>
+          </article>
+          <article class="dashboard-card">
+            <p class="card-kicker">This week</p>
+            <p id="dashboardWeek" class="dashboard-number">0 km</p>
+            <p id="dashboardStreak" class="dashboard-note">0 day streak</p>
+          </article>
+          <article class="dashboard-card">
+            <p class="card-kicker">Recent activity</p>
+            <p id="dashboardRecent" class="dashboard-number">-</p>
+            <p id="dashboardNext" class="dashboard-note">Next target appears after analysis.</p>
+          </article>
+        </section>
+
+        <section class="dashboard-grid secondary-grid">
+          <article class="dashboard-card">
+            <p class="card-kicker">Energy target</p>
+            <p id="dashboardMaintenance" class="dashboard-number">-</p>
+            <p class="dashboard-note">Maintenance calories</p>
+          </article>
+          <article class="dashboard-card">
+            <p class="card-kicker">Training load</p>
+            <p id="dashboardBurn" class="dashboard-number">0 kcal</p>
+            <p class="dashboard-note">Estimated weekly burn from logged activity</p>
+          </article>
+          <article class="dashboard-card">
+            <p class="card-kicker">Profile status</p>
+            <p id="dashboardProfile" class="dashboard-number">-</p>
+            <p class="dashboard-note">Complete profile unlocks smarter guidance</p>
+          </article>
+        </section>
       </section>
 
-      <section class="panel auth-panel">
-        <div class="manual-header">
+      <section class="app-view" data-view="log">
+        <section class="panel upload-panel">
           <div>
-            <h2>Your account</h2>
-            <p class="hint">
-              Create an account once, then sign in from any browser to keep your
-              fitness data synced.
-            </p>
+            <label for="csvFile" class="upload-label">Choose Strava CSV</label>
+            <input id="csvFile" type="file" accept=".csv,text/csv" />
           </div>
-          <p id="accountStatus" class="account-status">Not signed in</p>
-        </div>
+          <button id="analyzeButton" type="button">Analyze my runs</button>
+          <p class="hint">
+            Expected source: Strava export file usually named
+            <code>activities.csv</code>.
+          </p>
+          <p id="status" class="status">Waiting for file.</p>
+        </section>
 
-        <form id="authForm" class="auth-form">
-          <label>
-            Email
-            <input id="emailInput" type="email" placeholder="you@example.com" autocomplete="email" />
-          </label>
-          <label>
-            Password
-            <input id="passwordInput" type="password" placeholder="Choose a password" autocomplete="current-password" />
-          </label>
-          <button id="registerButton" type="button" class="secondary-button strong-button">Create account</button>
-          <button id="loginButton" type="button">Sign in</button>
-        </form>
-
-        <div class="auth-actions">
-          <button id="logoutButton" type="button" class="secondary-button">Sign out</button>
-          <p class="hint">Your runs and settings save to your account automatically after every change.</p>
-        </div>
-      </section>
-
-      <section class="panel upload-panel">
-        <div>
-          <label for="csvFile" class="upload-label">Choose Strava CSV</label>
-          <input id="csvFile" type="file" accept=".csv,text/csv" />
-        </div>
-        <button id="analyzeButton" type="button">Analyze my runs</button>
-        <p class="hint">
-          Expected source: Strava export file usually named
-          <code>activities.csv</code>.
-        </p>
-        <p id="status" class="status">Waiting for file.</p>
-      </section>
-
-      <section class="panel profile-panel">
-        <div class="manual-header">
-          <div>
-            <h2>Profile and calories</h2>
-            <p class="hint">Saved profile details power calorie, protein, and recovery estimates.</p>
-          </div>
-          <p id="calorieSummary" class="account-status">Profile incomplete</p>
-        </div>
-
-        <div class="profile-grid">
-          <label>
-            Name
-            <input id="profileName" type="text" placeholder="Aditya" />
-          </label>
-          <label>
-            Age
-            <input id="profileAge" type="number" min="10" max="100" placeholder="25" />
-          </label>
-          <label>
-            Sex
-            <select id="profileSex">
-              <option value="">Select</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </label>
-          <label>
-            Height (cm)
-            <input id="profileHeight" type="number" min="100" max="250" placeholder="175" />
-          </label>
-          <label>
-            Weight (kg)
-            <input id="profileWeight" type="number" min="30" max="250" step="0.1" placeholder="75" />
-          </label>
-          <label>
-            Goal weight (kg)
-            <input id="profileGoalWeight" type="number" min="30" max="250" step="0.1" placeholder="70" />
-          </label>
-          <label>
-            Activity level
-            <select id="profileActivityLevel">
-              <option value="sedentary">Low</option>
-              <option value="light" selected>Light</option>
-              <option value="moderate">Moderate</option>
-              <option value="active">Active</option>
-              <option value="veryActive">Very active</option>
-            </select>
-          </label>
-          <label>
-            Main goal
-            <select id="profileMainGoal">
-              <option value="maintain">Maintain</option>
-              <option value="fatLoss">Fat loss</option>
-              <option value="muscleGain">Muscle gain</option>
-              <option value="performance">Performance</option>
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <section class="panel manual-panel">
-        <div class="manual-header">
-          <div>
-            <h2>Log activity manually</h2>
-            <p class="hint">
-              Add workouts one at a time. Running activities power the current forecast.
-              <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>
-            </p>
-          </div>
-          <button id="useManualButton" type="button">Analyze typed data</button>
-        </div>
-
-        <div class="settings-grid">
-          <label>
-            Forecast mode
-            <select id="forecastMode">
-              <option value="comfort">Comfortable distance</option>
-              <option value="race">Race target</option>
-            </select>
-          </label>
-          <label>
-            Goal distance (km)
-            <input id="goalDistance" type="number" min="1" step="0.1" value="21.1" />
-          </label>
-          <label>
-            Target time
-            <input id="targetTime" type="text" placeholder="00:30:00 for 5K under 30" />
-          </label>
-          <label>
-            Goal date
-            <input id="goalDate" type="date" />
-          </label>
-        </div>
-
-        <form id="manualForm" class="manual-form">
-          <label>
-            Type
-            <select id="activityType">
-              <option value="run">Run</option>
-              <option value="walk">Walk</option>
-              <option value="hiit">HIIT</option>
-              <option value="hyrox">HYROX</option>
-              <option value="strength">Strength</option>
-              <option value="bodybuilding">Bodybuilding</option>
-            </select>
-          </label>
-          <label>
-            Date
-            <input id="runDate" type="date" />
-          </label>
-          <label>
-            Distance (km)
-            <input id="runDistance" type="number" min="0" step="0.1" placeholder="8.5" />
-          </label>
-          <label>
-            Time (hh:mm:ss)
-            <input id="runTime" type="text" placeholder="00:52:30" />
-          </label>
-          <label>
-            Calories
-            <input id="activityCalories" type="number" min="0" step="1" placeholder="optional" />
-          </label>
-          <label class="wide-field">
-            Notes
-            <input id="activityNotes" type="text" placeholder="easy, intervals, upper body..." />
-          </label>
-          <button id="addRunButton" type="submit">Add activity</button>
-        </form>
-
-        <div class="manual-grid">
-          <div>
-            <label for="bulkRuns" class="upload-label">Paste multiple runs</label>
-            <textarea
-              id="bulkRuns"
-              rows="8"
-              placeholder="2026-04-01, 8.2, 00:49:10&#10;2026-04-03, 5.0, 00:31:20&#10;2026-04-07, 12.5, 01:19:45"
-            ></textarea>
-          </div>
-          <div>
-            <div class="runs-header">
-              <label class="upload-label">Logged activities</label>
-              <button id="clearRunsButton" type="button" class="secondary-button">Clear all</button>
+        <section class="panel manual-panel">
+          <div class="manual-header">
+            <div>
+              <h2 id="manualPanelHeading">Log activity manually</h2>
+              <p id="manualPanelHint" class="hint">
+                Add workouts one at a time. Running activities power the current forecast.
+                <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>
+              </p>
             </div>
-            <div id="manualRunsEmpty" class="empty-state">No activities yet.</div>
-            <div class="table-wrap manual-runs-table">
+            <div class="header-actions">
+              <p id="editStateBadge" class="mode-badge">New activity</p>
+              <button id="useManualButton" type="button">Analyze typed data</button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <label>
+              Forecast mode
+              <select id="forecastMode">
+                <option value="comfort">Comfortable distance</option>
+                <option value="race">Race target</option>
+              </select>
+            </label>
+            <label>
+              Goal distance (km)
+              <input id="goalDistance" type="number" min="1" step="0.1" value="21.1" />
+            </label>
+            <label>
+              Target time
+              <input id="targetTime" type="text" placeholder="00:30:00 for 5K under 30" />
+            </label>
+            <label>
+              Goal date
+              <input id="goalDate" type="date" />
+            </label>
+          </div>
+
+          <form id="manualForm" class="manual-form">
+            <label>
+              Type
+              <select id="activityType">
+                <option value="run">Run</option>
+                <option value="walk">Walk</option>
+                <option value="hiit">HIIT</option>
+                <option value="hyrox">HYROX</option>
+                <option value="strength">Strength</option>
+                <option value="bodybuilding">Bodybuilding</option>
+              </select>
+            </label>
+            <label>
+              Date
+              <input id="runDate" type="date" />
+            </label>
+            <label>
+              Distance (km)
+              <input id="runDistance" type="number" min="0" step="0.1" placeholder="8.5" />
+            </label>
+            <label>
+              Time (hh:mm:ss)
+              <input id="runTime" type="text" placeholder="00:52:30" />
+            </label>
+            <label>
+              Calories
+              <input id="activityCalories" type="number" min="0" step="1" placeholder="optional" />
+            </label>
+            <label class="wide-field">
+              Notes
+              <input id="activityNotes" type="text" placeholder="easy, intervals, upper body..." />
+            </label>
+            <div class="form-actions">
+              <button id="addRunButton" type="submit">Add activity</button>
+              <button id="cancelEditButton" type="button" class="secondary-button hidden-button">Cancel edit</button>
+            </div>
+          </form>
+
+          <div class="manual-grid">
+            <div>
+              <label for="bulkRuns" class="upload-label">Paste multiple runs</label>
+              <textarea
+                id="bulkRuns"
+                rows="8"
+                placeholder="2026-04-01, 8.2, 00:49:10&#10;2026-04-03, 5.0, 00:31:20&#10;2026-04-07, 12.5, 01:19:45"
+              ></textarea>
+            </div>
+            <div>
+              <div class="runs-header">
+                <label class="upload-label">Logged activities</label>
+                <button id="clearRunsButton" type="button" class="secondary-button">Clear all</button>
+              </div>
+              <div id="manualRunsEmpty" class="empty-state">No activities yet.</div>
+              <div class="table-wrap manual-runs-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Date</th>
+                      <th>Distance</th>
+                      <th>Time</th>
+                      <th>Calories</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="manualRunsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="app-view" data-view="forecast">
+        <section id="forecastEmpty" class="panel empty-panel">
+          <h2>Forecast</h2>
+          <p class="goal-summary">Log a few runs, set a goal, and tap analyze to unlock the forecast view.</p>
+        </section>
+
+        <section id="results" class="results hidden">
+          <div class="panel summary-grid">
+            <article class="metric-card accent">
+              <h2 id="forecastHeading">Comfortable 21K forecast</h2>
+              <p id="forecastDate" class="metric-value">-</p>
+              <p id="forecastConfidence" class="metric-note">-</p>
+            </article>
+            <article class="metric-card score-card">
+              <h2>Readiness score</h2>
+              <p id="readinessScore" class="metric-value">-</p>
+              <p id="readinessLabel" class="metric-note">-</p>
+            </article>
+            <article class="metric-card">
+              <h2 id="distanceMetricHeading">Goal-distance readiness</h2>
+              <p id="comfortDistance" class="metric-value">-</p>
+              <p id="comfortPace" class="metric-note">-</p>
+            </article>
+            <article class="metric-card">
+              <h2>Recent weekly volume</h2>
+              <p id="weeklyVolume" class="metric-value">-</p>
+              <p id="consistency" class="metric-note">-</p>
+            </article>
+            <article class="metric-card">
+              <h2>Best long run in 8 weeks</h2>
+              <p id="bestLongRun" class="metric-value">-</p>
+              <p id="bestLongRunPace" class="metric-note">-</p>
+            </article>
+          </div>
+
+          <div class="two-col">
+            <section class="panel">
+              <h2>Goal-date check</h2>
+              <p id="goalDateSummary" class="goal-summary">
+                Add a goal date above to see whether your current training trend gets you there in time.
+              </p>
+            </section>
+
+            <section class="panel">
+              <h2>Training trend</h2>
+              <div class="chart-block">
+                <h3>Weekly total distance</h3>
+                <div id="volumeChart" class="bar-chart"></div>
+              </div>
+              <div class="chart-block">
+                <h3>Longest run each week</h3>
+                <div id="longRunChart" class="bar-chart"></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="panel">
+            <h2>Recommended next 4 weeks</h2>
+            <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Distance</th>
-                    <th>Time</th>
-                    <th>Calories</th>
-                    <th></th>
+                    <th>Week</th>
+                    <th>Target distance</th>
+                    <th>Long run</th>
+                    <th>Focus</th>
                   </tr>
                 </thead>
-                <tbody id="manualRunsBody"></tbody>
+                <tbody id="targetsBody"></tbody>
               </table>
             </div>
           </div>
-        </div>
+
+          <div class="two-col">
+            <section class="panel">
+              <h2>How the forecast was derived</h2>
+              <ul id="insightsList" class="insights"></ul>
+            </section>
+
+            <section class="panel">
+              <h2>Data notes</h2>
+              <ul id="notesList" class="insights"></ul>
+            </section>
+          </div>
+        </section>
       </section>
 
-      <section id="results" class="results hidden">
-        <div class="panel summary-grid">
-          <article class="metric-card accent">
-            <h2 id="forecastHeading">Comfortable 21K forecast</h2>
-            <p id="forecastDate" class="metric-value">-</p>
-            <p id="forecastConfidence" class="metric-note">-</p>
-          </article>
-          <article class="metric-card score-card">
-            <h2>Readiness score</h2>
-            <p id="readinessScore" class="metric-value">-</p>
-            <p id="readinessLabel" class="metric-note">-</p>
-          </article>
-          <article class="metric-card">
-            <h2 id="distanceMetricHeading">Goal-distance readiness</h2>
-            <p id="comfortDistance" class="metric-value">-</p>
-            <p id="comfortPace" class="metric-note">-</p>
-          </article>
-          <article class="metric-card">
-            <h2>Recent weekly volume</h2>
-            <p id="weeklyVolume" class="metric-value">-</p>
-            <p id="consistency" class="metric-note">-</p>
-          </article>
-          <article class="metric-card">
-            <h2>Best long run in 8 weeks</h2>
-            <p id="bestLongRun" class="metric-value">-</p>
-            <p id="bestLongRunPace" class="metric-note">-</p>
-          </article>
-        </div>
-
-        <div class="two-col">
-          <section class="panel">
-            <h2>Goal-date check</h2>
-            <p id="goalDateSummary" class="goal-summary">
-              Add a goal date above to see whether your current training trend gets you there in time.
-            </p>
-          </section>
-
-          <section class="panel">
-            <h2>Training trend</h2>
-            <div class="chart-block">
-              <h3>Weekly total distance</h3>
-              <div id="volumeChart" class="bar-chart"></div>
+      <section class="app-view" data-view="profile">
+        <section class="panel auth-panel">
+          <div class="manual-header">
+            <div>
+              <h2>Your account</h2>
+              <p class="hint">
+                Create an account once, then sign in from any browser to keep your
+                fitness data synced.
+              </p>
             </div>
-            <div class="chart-block">
-              <h3>Longest run each week</h3>
-              <div id="longRunChart" class="bar-chart"></div>
-            </div>
-          </section>
-        </div>
-
-        <div class="panel">
-          <h2>Recommended next 4 weeks</h2>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Week</th>
-                  <th>Target distance</th>
-                  <th>Long run</th>
-                  <th>Focus</th>
-                </tr>
-              </thead>
-              <tbody id="targetsBody"></tbody>
-            </table>
+            <p id="accountStatus" class="account-status">Not signed in</p>
           </div>
-        </div>
 
-        <div class="two-col">
-          <section class="panel">
-            <h2>How the forecast was derived</h2>
-            <ul id="insightsList" class="insights"></ul>
-          </section>
+          <form id="authForm" class="auth-form">
+            <label>
+              Email
+              <input id="emailInput" type="email" placeholder="you@example.com" autocomplete="email" />
+            </label>
+            <label>
+              Password
+              <input id="passwordInput" type="password" placeholder="Choose a password" autocomplete="current-password" />
+            </label>
+            <button id="registerButton" type="button" class="secondary-button strong-button">Create account</button>
+            <button id="loginButton" type="button">Sign in</button>
+          </form>
 
-          <section class="panel">
-            <h2>Data notes</h2>
-            <ul id="notesList" class="insights"></ul>
-          </section>
-        </div>
+          <div class="auth-actions">
+            <button id="logoutButton" type="button" class="secondary-button">Sign out</button>
+            <p class="hint">Your runs and settings save to your account automatically after every change.</p>
+          </div>
+        </section>
+
+        <section class="panel profile-panel">
+          <div class="manual-header">
+            <div>
+              <h2>Profile and calories</h2>
+              <p class="hint">Saved profile details power calorie, protein, and recovery estimates.</p>
+            </div>
+            <p id="calorieSummary" class="account-status">Profile incomplete</p>
+          </div>
+
+          <div class="calorie-cards">
+            <article class="mini-card">
+              <p class="card-kicker">Target intake</p>
+              <p id="calorieTargetCard" class="mini-number">-</p>
+            </article>
+            <article class="mini-card">
+              <p class="card-kicker">Maintenance</p>
+              <p id="calorieMaintenanceCard" class="mini-number">-</p>
+            </article>
+            <article class="mini-card">
+              <p class="card-kicker">Protein</p>
+              <p id="proteinCard" class="mini-number">-</p>
+            </article>
+          </div>
+
+          <div class="profile-grid">
+            <label>
+              Name
+              <input id="profileName" type="text" placeholder="Aditya" />
+            </label>
+            <label>
+              Age
+              <input id="profileAge" type="number" min="10" max="100" placeholder="25" />
+            </label>
+            <label>
+              Sex
+              <select id="profileSex">
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </label>
+            <label>
+              Height (cm)
+              <input id="profileHeight" type="number" min="100" max="250" placeholder="175" />
+            </label>
+            <label>
+              Weight (kg)
+              <input id="profileWeight" type="number" min="30" max="250" step="0.1" placeholder="75" />
+            </label>
+            <label>
+              Goal weight (kg)
+              <input id="profileGoalWeight" type="number" min="30" max="250" step="0.1" placeholder="70" />
+            </label>
+            <label>
+              Activity level
+              <select id="profileActivityLevel">
+                <option value="sedentary">Low</option>
+                <option value="light" selected>Light</option>
+                <option value="moderate">Moderate</option>
+                <option value="active">Active</option>
+                <option value="veryActive">Very active</option>
+              </select>
+            </label>
+            <label>
+              Main goal
+              <select id="profileMainGoal">
+                <option value="maintain">Maintain</option>
+                <option value="fatLoss">Fat loss</option>
+                <option value="muscleGain">Muscle gain</option>
+                <option value="performance">Performance</option>
+              </select>
+            </label>
+          </div>
+        </section>
       </section>
     </main>
 
