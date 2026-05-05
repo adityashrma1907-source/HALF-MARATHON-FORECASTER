@@ -10,12 +10,35 @@
     <main class="shell">
       <section class="hero">
         <p class="eyebrow">Strava-based readiness planner</p>
-        <h1>Forecast your next running goal.</h1>
+        <h1>Forecast your next fitness goal.</h1>
         <p class="intro">
-          Use this from your laptop or phone, keep your runs synced to your own
+          Use this from your laptop or phone, keep your activities synced to your own
           account, and forecast targets like 5 km under 30 minutes or a
           comfortable half marathon.
         </p>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-card main-card">
+          <p class="card-kicker">Current goal</p>
+          <h2 id="dashboardGoal">Comfortable 21.1 km</h2>
+          <p id="dashboardForecast" class="dashboard-note">Add activities and analyze to see your forecast.</p>
+        </article>
+        <article class="dashboard-card">
+          <p class="card-kicker">Calories</p>
+          <p id="dashboardCalories" class="dashboard-number">-</p>
+          <p id="dashboardProtein" class="dashboard-note">Complete your profile.</p>
+        </article>
+        <article class="dashboard-card">
+          <p class="card-kicker">This week</p>
+          <p id="dashboardWeek" class="dashboard-number">0 km</p>
+          <p id="dashboardStreak" class="dashboard-note">0 day streak</p>
+        </article>
+        <article class="dashboard-card">
+          <p class="card-kicker">Recent activity</p>
+          <p id="dashboardRecent" class="dashboard-number">-</p>
+          <p id="dashboardNext" class="dashboard-note">Next target appears after analysis.</p>
+        </article>
       </section>
 
       <section class="panel auth-panel">
@@ -24,7 +47,7 @@
             <h2>Your account</h2>
             <p class="hint">
               Create an account once, then sign in from any browser to keep your
-              running data synced.
+              fitness data synced.
             </p>
           </div>
           <p id="accountStatus" class="account-status">Not signed in</p>
@@ -62,12 +85,72 @@
         <p id="status" class="status">Waiting for file.</p>
       </section>
 
+      <section class="panel profile-panel">
+        <div class="manual-header">
+          <div>
+            <h2>Profile and calories</h2>
+            <p class="hint">Saved profile details power calorie, protein, and recovery estimates.</p>
+          </div>
+          <p id="calorieSummary" class="account-status">Profile incomplete</p>
+        </div>
+
+        <div class="profile-grid">
+          <label>
+            Name
+            <input id="profileName" type="text" placeholder="Aditya" />
+          </label>
+          <label>
+            Age
+            <input id="profileAge" type="number" min="10" max="100" placeholder="25" />
+          </label>
+          <label>
+            Sex
+            <select id="profileSex">
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </label>
+          <label>
+            Height (cm)
+            <input id="profileHeight" type="number" min="100" max="250" placeholder="175" />
+          </label>
+          <label>
+            Weight (kg)
+            <input id="profileWeight" type="number" min="30" max="250" step="0.1" placeholder="75" />
+          </label>
+          <label>
+            Goal weight (kg)
+            <input id="profileGoalWeight" type="number" min="30" max="250" step="0.1" placeholder="70" />
+          </label>
+          <label>
+            Activity level
+            <select id="profileActivityLevel">
+              <option value="sedentary">Low</option>
+              <option value="light" selected>Light</option>
+              <option value="moderate">Moderate</option>
+              <option value="active">Active</option>
+              <option value="veryActive">Very active</option>
+            </select>
+          </label>
+          <label>
+            Main goal
+            <select id="profileMainGoal">
+              <option value="maintain">Maintain</option>
+              <option value="fatLoss">Fat loss</option>
+              <option value="muscleGain">Muscle gain</option>
+              <option value="performance">Performance</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
       <section class="panel manual-panel">
         <div class="manual-header">
           <div>
-            <h2>Or type your runs manually</h2>
+            <h2>Log activity manually</h2>
             <p class="hint">
-              Add one run at a time or paste multiple runs in the format:
+              Add workouts one at a time. Running activities power the current forecast.
               <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>
             </p>
           </div>
@@ -98,6 +181,17 @@
 
         <form id="manualForm" class="manual-form">
           <label>
+            Type
+            <select id="activityType">
+              <option value="run">Run</option>
+              <option value="walk">Walk</option>
+              <option value="hiit">HIIT</option>
+              <option value="hyrox">HYROX</option>
+              <option value="strength">Strength</option>
+              <option value="bodybuilding">Bodybuilding</option>
+            </select>
+          </label>
+          <label>
             Date
             <input id="runDate" type="date" />
           </label>
@@ -109,7 +203,15 @@
             Time (hh:mm:ss)
             <input id="runTime" type="text" placeholder="00:52:30" />
           </label>
-          <button id="addRunButton" type="submit">Add run</button>
+          <label>
+            Calories
+            <input id="activityCalories" type="number" min="0" step="1" placeholder="optional" />
+          </label>
+          <label class="wide-field">
+            Notes
+            <input id="activityNotes" type="text" placeholder="easy, intervals, upper body..." />
+          </label>
+          <button id="addRunButton" type="submit">Add activity</button>
         </form>
 
         <div class="manual-grid">
@@ -123,17 +225,19 @@
           </div>
           <div>
             <div class="runs-header">
-              <label class="upload-label">Typed runs</label>
+              <label class="upload-label">Logged activities</label>
               <button id="clearRunsButton" type="button" class="secondary-button">Clear all</button>
             </div>
-            <div id="manualRunsEmpty" class="empty-state">No typed runs yet.</div>
+            <div id="manualRunsEmpty" class="empty-state">No activities yet.</div>
             <div class="table-wrap manual-runs-table">
               <table>
                 <thead>
                   <tr>
+                    <th>Type</th>
                     <th>Date</th>
                     <th>Distance</th>
                     <th>Time</th>
+                    <th>Calories</th>
                     <th></th>
                   </tr>
                 </thead>

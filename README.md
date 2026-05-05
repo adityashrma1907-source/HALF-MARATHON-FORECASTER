@@ -6,9 +6,15 @@ This is now a small full-stack web app that can:
 - work across browsers and devices once deployed
 - estimate when different distance and time goals are realistic
 - give you weekly targets based on recent training data
+- store a basic profile for calorie and protein targets
+- log multiple activity types in one shared activity model
 
 ## New features now included
 
+- dashboard with goal, calories, weekly activity, streak, and recent activity
+- profile: age, sex, height, weight, activity level, and main goal
+- calories v1: daily calorie target and protein target
+- unified activity logging for running, walking, HIIT, HYROX, strength, and bodybuilding
 - `Comfort` vs `Race-ready` forecast mode
 - optional `goal date` check
 - custom `goal distance`, such as 5 km, 10 km, or 21.1 km
@@ -24,8 +30,9 @@ This is now a small full-stack web app that can:
 1. Double-click [start.bat](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\start.bat).
 2. Your browser should open `http://localhost:3000`.
 3. Create an account or sign in.
-4. Set your goal distance and optional target time.
-5. Type runs manually or upload your CSV.
+4. Complete your profile for calorie/protein estimates.
+5. Set your goal distance and optional target time.
+6. Log activities manually or upload your CSV.
 
 Or:
 

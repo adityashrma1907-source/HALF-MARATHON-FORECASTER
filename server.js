@@ -227,6 +227,28 @@ function requireSession(request, response) {
 }
 
 function normalizeState(body) {
+  const activities = Array.isArray(body?.activities)
+    ? body.activities
+        .map((activity) => ({
+          id: String(activity?.id || ""),
+          type: normalizeActivityType(activity?.type),
+          date: String(activity?.date || ""),
+          distanceKm: Number(activity?.distanceKm || 0),
+          movingSeconds: Number(activity?.movingSeconds || activity?.durationSeconds),
+          durationSeconds: Number(activity?.durationSeconds || activity?.movingSeconds),
+          calories: Number.isFinite(Number(activity?.calories)) ? Number(activity.calories) : null,
+          notes: String(activity?.notes || ""),
+          source: String(activity?.source || "manual"),
+          verified: Boolean(activity?.verified),
+        }))
+        .filter(
+          (activity) =>
+            activity.date &&
+            Number.isFinite(activity.movingSeconds) &&
+            activity.movingSeconds > 0 &&
+            Number.isFinite(activity.distanceKm),
+        )
+    : [];
   const manualRuns = Array.isArray(body?.manualRuns)
     ? body.manualRuns
         .map((run) => ({
@@ -243,8 +265,11 @@ function normalizeState(body) {
             run.movingSeconds > 0,
         )
     : [];
+  const profile = normalizeProfile(body?.profile);
 
   return {
+    profile,
+    activities,
     manualRuns,
     bulkRuns: String(body?.bulkRuns || ""),
     forecastMode: body?.forecastMode === "race" ? "race" : "comfort",
@@ -256,8 +281,33 @@ function normalizeState(body) {
   };
 }
 
+function normalizeProfile(profile) {
+  return {
+    name: String(profile?.name || ""),
+    age: Number.isFinite(Number(profile?.age)) ? Number(profile.age) : null,
+    sex: profile?.sex === "male" || profile?.sex === "female" ? profile.sex : "",
+    heightCm: Number.isFinite(Number(profile?.heightCm)) ? Number(profile.heightCm) : null,
+    weightKg: Number.isFinite(Number(profile?.weightKg)) ? Number(profile.weightKg) : null,
+    goalWeightKg: Number.isFinite(Number(profile?.goalWeightKg)) ? Number(profile.goalWeightKg) : null,
+    activityLevel: ["sedentary", "light", "moderate", "active", "veryActive"].includes(profile?.activityLevel)
+      ? profile.activityLevel
+      : "light",
+    mainGoal: ["maintain", "fatLoss", "muscleGain", "performance"].includes(profile?.mainGoal)
+      ? profile.mainGoal
+      : "maintain",
+  };
+}
+
+function normalizeActivityType(type) {
+  return ["run", "walk", "hiit", "hyrox", "strength", "bodybuilding"].includes(type)
+    ? type
+    : "run";
+}
+
 function getEmptyState() {
   return {
+    profile: normalizeProfile({}),
+    activities: [],
     manualRuns: [],
     bulkRuns: "",
     forecastMode: "comfort",

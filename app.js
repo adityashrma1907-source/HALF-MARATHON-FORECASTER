@@ -2,9 +2,12 @@ const fileInput = document.getElementById("csvFile");
 const analyzeButton = document.getElementById("analyzeButton");
 const useManualButton = document.getElementById("useManualButton");
 const manualForm = document.getElementById("manualForm");
+const activityTypeInput = document.getElementById("activityType");
 const runDateInput = document.getElementById("runDate");
 const runDistanceInput = document.getElementById("runDistance");
 const runTimeInput = document.getElementById("runTime");
+const activityCaloriesInput = document.getElementById("activityCalories");
+const activityNotesInput = document.getElementById("activityNotes");
 const bulkRunsInput = document.getElementById("bulkRuns");
 const clearRunsButton = document.getElementById("clearRunsButton");
 const manualRunsBody = document.getElementById("manualRunsBody");
@@ -22,8 +25,31 @@ const registerButton = document.getElementById("registerButton");
 const loginButton = document.getElementById("loginButton");
 const logoutButton = document.getElementById("logoutButton");
 const accountStatus = document.getElementById("accountStatus");
+const profileInputs = {
+  name: document.getElementById("profileName"),
+  age: document.getElementById("profileAge"),
+  sex: document.getElementById("profileSex"),
+  heightCm: document.getElementById("profileHeight"),
+  weightKg: document.getElementById("profileWeight"),
+  goalWeightKg: document.getElementById("profileGoalWeight"),
+  activityLevel: document.getElementById("profileActivityLevel"),
+  mainGoal: document.getElementById("profileMainGoal"),
+};
+const dashboardElements = {
+  goal: document.getElementById("dashboardGoal"),
+  forecast: document.getElementById("dashboardForecast"),
+  calories: document.getElementById("dashboardCalories"),
+  protein: document.getElementById("dashboardProtein"),
+  week: document.getElementById("dashboardWeek"),
+  streak: document.getElementById("dashboardStreak"),
+  recent: document.getElementById("dashboardRecent"),
+  next: document.getElementById("dashboardNext"),
+  calorieSummary: document.getElementById("calorieSummary"),
+};
 
-const manualRuns = [];
+const activities = [];
+const manualRuns = activities;
+let latestAnalysis = null;
 const LOCAL_STATE_KEY = "strava-half-forecaster-state-v2";
 const SESSION_KEY = "strava-half-forecaster-session-v1";
 const authState = {
@@ -57,22 +83,41 @@ analyzeButton.addEventListener("click", async () => {
 manualForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
+  const type = activityTypeInput.value;
   const date = runDateInput.value;
   const distanceKm = Number.parseFloat(runDistanceInput.value);
   const movingSeconds = parseDurationToSeconds(runTimeInput.value);
+  const calories = Number.parseFloat(activityCaloriesInput.value);
+  const notes = activityNotesInput.value.trim();
 
-  if (!date || !Number.isFinite(distanceKm) || distanceKm <= 0 || !movingSeconds) {
-    setStatus("Enter a valid date, distance, and time before adding a run.");
+  if (!date || !movingSeconds) {
+    setStatus("Enter a valid date and time before adding an activity.");
+    return;
+  }
+  if (type === "run" && (!Number.isFinite(distanceKm) || distanceKm <= 0)) {
+    setStatus("Runs need a valid distance so the forecast can use them.");
     return;
   }
 
-  manualRuns.push(createManualRun(date, distanceKm, movingSeconds));
+  activities.push(
+    createActivity({
+      type,
+      date,
+      distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
+      movingSeconds,
+      calories: Number.isFinite(calories) ? calories : null,
+      notes,
+      source: "manual",
+      verified: false,
+    }),
+  );
   sortManualRuns();
   renderManualRuns();
+  renderDashboard();
   await saveAppState();
   manualForm.reset();
   runDateInput.value = formatInputDate(new Date());
-  setStatus(`Added run on ${date}.`);
+  setStatus(`Added ${formatActivityType(type)} on ${date}.`);
 });
 
 useManualButton.addEventListener("click", () => {
@@ -89,12 +134,13 @@ useManualButton.addEventListener("click", () => {
 });
 
 clearRunsButton.addEventListener("click", async () => {
-  manualRuns.length = 0;
+  activities.length = 0;
   bulkRunsInput.value = "";
   renderManualRuns();
+  renderDashboard();
   await saveAppState();
   resultsSection.classList.add("hidden");
-  setStatus("Cleared typed runs.");
+  setStatus("Cleared activities.");
 });
 
 manualRunsBody.addEventListener("click", async (event) => {
@@ -104,22 +150,45 @@ manualRunsBody.addEventListener("click", async (event) => {
   }
 
   const index = Number(button.dataset.index);
-  manualRuns.splice(index, 1);
+  activities.splice(index, 1);
   renderManualRuns();
+  renderDashboard();
   await saveAppState();
-  setStatus("Removed run.");
+  setStatus("Removed activity.");
 });
 
 registerButton.addEventListener("click", () => handleAuth("register"));
 loginButton.addEventListener("click", () => handleAuth("login"));
 logoutButton.addEventListener("click", handleLogout);
 
-forecastModeInput.addEventListener("change", () => void saveAppState());
-goalDistanceInput.addEventListener("change", () => void saveAppState());
-targetTimeInput.addEventListener("change", () => void saveAppState());
-goalDateInput.addEventListener("change", () => void saveAppState());
+forecastModeInput.addEventListener("change", () => {
+  renderDashboard();
+  void saveAppState();
+});
+goalDistanceInput.addEventListener("change", () => {
+  renderDashboard();
+  void saveAppState();
+});
+targetTimeInput.addEventListener("change", () => {
+  renderDashboard();
+  void saveAppState();
+});
+goalDateInput.addEventListener("change", () => {
+  renderDashboard();
+  void saveAppState();
+});
 bulkRunsInput.addEventListener("input", () => void saveAppState());
 authForm.addEventListener("submit", (event) => event.preventDefault());
+for (const input of Object.values(profileInputs)) {
+  input.addEventListener("input", () => {
+    renderDashboard();
+    void saveAppState();
+  });
+  input.addEventListener("change", () => {
+    renderDashboard();
+    void saveAppState();
+  });
+}
 
 initializeApp();
 
@@ -135,6 +204,7 @@ async function initializeApp() {
     goalDistanceInput.value = "21.1";
   }
   renderManualRuns();
+  renderDashboard();
   updateAccountUI();
   await restoreSessionAndSync();
 }
@@ -273,7 +343,9 @@ function loadLocalState() {
 
 function getCurrentState() {
   return {
-    manualRuns: manualRuns.map((run) => ({
+    profile: getProfileState(),
+    activities: activities.map(serializeActivity),
+    manualRuns: getRunActivities().map((run) => ({
       date: formatInputDate(run.date),
       distanceKm: run.distanceKm,
       movingSeconds: run.movingSeconds,
@@ -287,27 +359,49 @@ function getCurrentState() {
 }
 
 function applyState(state) {
-  manualRuns.length = 0;
+  activities.length = 0;
 
-  for (const run of state?.manualRuns || []) {
-    if (!run.date || !Number.isFinite(run.distanceKm) || !run.movingSeconds) {
-      continue;
+  const savedActivities = Array.isArray(state?.activities) ? state.activities : [];
+  const legacyRuns = Array.isArray(state?.manualRuns) ? state.manualRuns : [];
+
+  for (const activity of savedActivities) {
+    const normalized = normalizeActivity(activity);
+    if (normalized) {
+      activities.push(normalized);
     }
-    manualRuns.push(createManualRun(run.date, run.distanceKm, run.movingSeconds));
   }
 
+  if (!activities.length) {
+    for (const run of legacyRuns) {
+      const normalized = normalizeActivity({
+        type: "run",
+        date: run.date,
+        distanceKm: run.distanceKm,
+        movingSeconds: run.movingSeconds,
+        source: "manual",
+      });
+      if (normalized) {
+        activities.push(normalized);
+      }
+    }
+  }
+
+  applyProfileState(state?.profile || {});
   bulkRunsInput.value = state?.bulkRuns || "";
   forecastModeInput.value = state?.forecastMode || "comfort";
   goalDistanceInput.value = state?.goalDistanceKm || "21.1";
   targetTimeInput.value = state?.targetTime || "";
   goalDateInput.value = state?.goalDate || "";
   renderManualRuns();
+  renderDashboard();
 }
 
 function hasAnyData(state) {
   return Boolean(
-    state?.manualRuns?.length ||
+    state?.activities?.length ||
+      state?.manualRuns?.length ||
       state?.bulkRuns?.trim() ||
+      state?.profile?.weightKg ||
       state?.goalDistanceKm ||
       state?.targetTime?.trim(),
   );
@@ -366,7 +460,9 @@ function runAnalysis(activities, successMessage) {
     targetTimeSeconds,
     goalDate: goalDateInput.value ? parseDate(goalDateInput.value) : null,
   });
+  latestAnalysis = analysis;
   renderAnalysis(analysis);
+  renderDashboard();
   resultsSection.classList.remove("hidden");
   setStatus(successMessage);
 }
@@ -381,18 +477,123 @@ function setStatus(message) {
   statusText.textContent = message;
 }
 
-function createManualRun(date, distanceKm, movingSeconds) {
+function getProfileState() {
   return {
-    title: "Manual run",
-    type: "run",
-    date: parseDate(date),
-    distanceKm,
-    movingSeconds,
+    name: profileInputs.name.value.trim(),
+    age: Number.parseInt(profileInputs.age.value, 10) || null,
+    sex: profileInputs.sex.value,
+    heightCm: Number.parseFloat(profileInputs.heightCm.value) || null,
+    weightKg: Number.parseFloat(profileInputs.weightKg.value) || null,
+    goalWeightKg: Number.parseFloat(profileInputs.goalWeightKg.value) || null,
+    activityLevel: profileInputs.activityLevel.value || "light",
+    mainGoal: profileInputs.mainGoal.value || "maintain",
   };
 }
 
+function applyProfileState(profile) {
+  profileInputs.name.value = profile.name || "";
+  profileInputs.age.value = profile.age || "";
+  profileInputs.sex.value = profile.sex || "";
+  profileInputs.heightCm.value = profile.heightCm || "";
+  profileInputs.weightKg.value = profile.weightKg || "";
+  profileInputs.goalWeightKg.value = profile.goalWeightKg || "";
+  profileInputs.activityLevel.value = profile.activityLevel || "light";
+  profileInputs.mainGoal.value = profile.mainGoal || "maintain";
+}
+
+function createActivity({
+  type,
+  date,
+  distanceKm = 0,
+  movingSeconds,
+  calories = null,
+  notes = "",
+  source = "manual",
+  verified = false,
+}) {
+  return {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    title: `${formatActivityType(type)} activity`,
+    type,
+    date: parseDate(date),
+    distanceKm: Number(distanceKm) || 0,
+    movingSeconds,
+    durationSeconds: movingSeconds,
+    calories: Number.isFinite(Number(calories)) ? Number(calories) : null,
+    notes,
+    source,
+    verified,
+  };
+}
+
+function createManualRun(date, distanceKm, movingSeconds) {
+  return createActivity({
+    type: "run",
+    date,
+    distanceKm,
+    movingSeconds,
+    source: "manual",
+    verified: false,
+  });
+}
+
+function serializeActivity(activity) {
+  return {
+    id: activity.id,
+    type: activity.type,
+    date: formatInputDate(activity.date),
+    distanceKm: activity.distanceKm || 0,
+    movingSeconds: activity.movingSeconds || activity.durationSeconds || 0,
+    durationSeconds: activity.durationSeconds || activity.movingSeconds || 0,
+    calories: activity.calories,
+    notes: activity.notes || "",
+    source: activity.source || "manual",
+    verified: Boolean(activity.verified),
+  };
+}
+
+function normalizeActivity(activity) {
+  const date = parseDate(activity?.date);
+  const movingSeconds = Number(activity?.movingSeconds || activity?.durationSeconds);
+  const distanceKm = Number(activity?.distanceKm || 0);
+
+  if (!date || !movingSeconds || !Number.isFinite(movingSeconds)) {
+    return null;
+  }
+
+  return {
+    id: activity.id || `${date.valueOf()}-${activity.type || "activity"}-${distanceKm}`,
+    title: activity.title || `${formatActivityType(activity.type || "run")} activity`,
+    type: activity.type || "run",
+    date,
+    distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
+    movingSeconds,
+    durationSeconds: movingSeconds,
+    calories: Number.isFinite(Number(activity.calories)) ? Number(activity.calories) : null,
+    notes: activity.notes || "",
+    source: activity.source || "manual",
+    verified: Boolean(activity.verified),
+  };
+}
+
+function getRunActivities(source = activities) {
+  return source.filter((activity) => activity.type === "run" && activity.distanceKm > 0);
+}
+
+function formatActivityType(type) {
+  const labels = {
+    run: "Run",
+    walk: "Walk",
+    hiit: "HIIT",
+    hyrox: "HYROX",
+    strength: "Strength",
+    bodybuilding: "Bodybuilding",
+  };
+  return labels[type] || "Activity";
+}
+
 function buildCombinedManualRuns() {
-  return dedupeRuns([...manualRuns, ...parseBulkRuns(bulkRunsInput.value)]);
+  return dedupeRuns([...getRunActivities(), ...parseBulkRuns(bulkRunsInput.value)]);
 }
 
 function dedupeRuns(runs) {
@@ -440,9 +641,11 @@ function renderManualRuns() {
     .map(
       (run, index) => `
         <tr>
+          <td>${formatActivityType(run.type)}</td>
           <td>${formatDate(run.date)}</td>
-          <td>${formatKm(run.distanceKm)}</td>
+          <td>${run.distanceKm ? formatKm(run.distanceKm) : "-"}</td>
           <td>${formatDuration(run.movingSeconds)}</td>
+          <td>${run.calories ? `${Math.round(run.calories)} kcal` : "-"}</td>
           <td><button type="button" class="secondary-button" data-index="${index}">Remove</button></td>
         </tr>
       `,
@@ -450,6 +653,97 @@ function renderManualRuns() {
     .join("");
 
   manualRunsEmpty.style.display = manualRuns.length ? "none" : "block";
+}
+
+function renderDashboard() {
+  const profile = getProfileState();
+  const caloriePlan = calculateCaloriePlan(profile);
+  const runs = getRunActivities();
+  const thisWeekActivities = getActivitiesThisWeek();
+  const thisWeekKm = thisWeekActivities.reduce((sum, activity) => sum + (activity.distanceKm || 0), 0);
+  const latestActivity = [...activities].sort((a, b) => b.date - a.date)[0];
+  const targetConfig = getTargetConfig({
+    mode: forecastModeInput.value,
+    goalDistanceKm: Number.parseFloat(goalDistanceInput.value) || 21.1,
+    targetTimeSeconds: parseTargetTimeToSeconds(targetTimeInput.value),
+  });
+
+  dashboardElements.goal.textContent = getGoalLabel(targetConfig);
+  dashboardElements.forecast.textContent = latestAnalysis
+    ? `${formatDate(latestAnalysis.forecastDate)} forecast with ${latestAnalysis.readinessScore}/100 readiness`
+    : `${runs.length} run${runs.length === 1 ? "" : "s"} ready for analysis`;
+  dashboardElements.week.textContent = `${round1(thisWeekKm)} km`;
+  dashboardElements.streak.textContent = `${getActivityStreak()} day streak`;
+  dashboardElements.recent.textContent = latestActivity
+    ? `${formatActivityType(latestActivity.type)} ${latestActivity.distanceKm ? formatKm(latestActivity.distanceKm) : formatDuration(latestActivity.movingSeconds)}`
+    : "-";
+  dashboardElements.next.textContent = latestAnalysis?.weeklyTargets?.[0]
+    ? `${formatKm(latestAnalysis.weeklyTargets[0].weeklyKm)} week, ${formatKm(latestAnalysis.weeklyTargets[0].longRunKm)} long run`
+    : "Analyze your runs for the next target.";
+
+  if (caloriePlan) {
+    dashboardElements.calories.textContent = `${caloriePlan.targetCalories} kcal`;
+    dashboardElements.protein.textContent = `${caloriePlan.proteinGrams} g protein/day`;
+    dashboardElements.calorieSummary.textContent = `${caloriePlan.targetCalories} kcal | ${caloriePlan.proteinGrams} g protein`;
+  } else {
+    dashboardElements.calories.textContent = "-";
+    dashboardElements.protein.textContent = "Complete age, sex, height, and weight.";
+    dashboardElements.calorieSummary.textContent = "Profile incomplete";
+  }
+}
+
+function calculateCaloriePlan(profile) {
+  if (!profile.age || !profile.sex || !profile.heightCm || !profile.weightKg) {
+    return null;
+  }
+
+  const sexAdjustment = profile.sex === "male" ? 5 : -161;
+  const bmr = 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + sexAdjustment;
+  const activityMultipliers = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    active: 1.725,
+    veryActive: 1.9,
+  };
+  const maintenance = bmr * (activityMultipliers[profile.activityLevel] || 1.375);
+  const adjustments = {
+    fatLoss: -400,
+    muscleGain: 250,
+    performance: 100,
+    maintain: 0,
+  };
+  const targetCalories = Math.max(1200, Math.round(maintenance + (adjustments[profile.mainGoal] || 0)));
+  const proteinMultiplier = profile.mainGoal === "muscleGain" ? 1.8 : profile.mainGoal === "fatLoss" ? 1.7 : 1.5;
+
+  return {
+    bmr: Math.round(bmr),
+    maintenance: Math.round(maintenance),
+    targetCalories,
+    proteinGrams: Math.round(profile.weightKg * proteinMultiplier),
+  };
+}
+
+function getActivitiesThisWeek() {
+  const weekStart = getWeekStart(new Date());
+  return activities.filter((activity) => activity.date >= weekStart);
+}
+
+function getActivityStreak() {
+  if (!activities.length) {
+    return 0;
+  }
+
+  const activeDays = new Set(activities.map((activity) => formatInputDate(activity.date)));
+  let cursor = startOfDay(new Date());
+  let streak = 0;
+
+  while (activeDays.has(formatInputDate(cursor))) {
+    streak += 1;
+    cursor = addDays(cursor, -1);
+  }
+
+  return streak;
 }
 
 function sortManualRuns() {
