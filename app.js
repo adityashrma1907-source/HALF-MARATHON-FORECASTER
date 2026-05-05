@@ -66,8 +66,8 @@ const manualRuns = activities;
 let latestAnalysis = null;
 let editingActivityId = null;
 let activeView = "dashboard";
-const LOCAL_STATE_KEY = "strava-half-forecaster-state-v2";
-const SESSION_KEY = "strava-half-forecaster-session-v1";
+const LOCAL_STATE_KEY = "athlofit-state-v1";
+const SESSION_KEY = "athlofit-session-v1";
 const authState = {
   token: null,
   email: null,
@@ -76,7 +76,7 @@ const authState = {
 analyzeButton.addEventListener("click", async () => {
   const file = fileInput.files?.[0];
   if (!file) {
-    setStatus("Choose a Strava CSV file first.");
+    setStatus("Choose an activity CSV file first.");
     return;
   }
 
@@ -90,7 +90,7 @@ analyzeButton.addEventListener("click", async () => {
       throw new Error("No rows could be parsed from the CSV.");
     }
 
-    runAnalysis(activities, `Analyzed ${activities.length} runs from your Strava export.`);
+    runAnalysis(activities, `Analyzed ${activities.length} imported activities.`);
   } catch (error) {
     handleAnalysisError(error, "Something went wrong while reading the file.");
   }
@@ -111,7 +111,7 @@ manualForm.addEventListener("submit", async (event) => {
     return;
   }
   if (type === "run" && (!Number.isFinite(distanceKm) || distanceKm <= 0)) {
-    setStatus("Runs need a valid distance so the forecast can use them.");
+    setStatus("Running entries need a valid distance so the forecast can use them.");
     return;
   }
 
@@ -152,12 +152,12 @@ useManualButton.addEventListener("click", () => {
   try {
     const combinedRuns = buildCombinedManualRuns();
     if (!combinedRuns.length) {
-      throw new Error("Type at least a few runs before analyzing.");
+      throw new Error("Add at least a few running entries before analyzing.");
     }
 
-    runAnalysis(combinedRuns, `Analyzed ${combinedRuns.length} manually entered runs.`);
+    runAnalysis(combinedRuns, `Analyzed ${combinedRuns.length} logged running entries.`);
   } catch (error) {
-    handleAnalysisError(error, "Could not analyze the typed data.");
+    handleAnalysisError(error, "Could not analyze the logged data.");
   }
 });
 
@@ -764,7 +764,7 @@ function renderDashboard() {
   dashboardElements.goal.textContent = getGoalLabel(targetConfig);
   dashboardElements.forecast.textContent = latestAnalysis
     ? `${formatDate(latestAnalysis.forecastDate)} forecast with ${latestAnalysis.readinessScore}/100 readiness`
-    : `${runs.length} run${runs.length === 1 ? "" : "s"} ready for analysis`;
+    : `${runs.length} running entr${runs.length === 1 ? "y" : "ies"} ready for analysis`;
   dashboardElements.week.textContent = `${round1(thisWeekKm)} km`;
   dashboardElements.streak.textContent = `${getActivityStreak()} day streak`;
   dashboardElements.recent.textContent = latestActivity
@@ -772,7 +772,7 @@ function renderDashboard() {
     : "-";
   dashboardElements.next.textContent = latestAnalysis?.weeklyTargets?.[0]
     ? `${formatKm(latestAnalysis.weeklyTargets[0].weeklyKm)} week, ${formatKm(latestAnalysis.weeklyTargets[0].longRunKm)} long run`
-    : "Analyze your runs for the next target.";
+    : "Analyze your running data for the next target.";
 
   if (caloriePlan) {
     dashboardElements.calories.textContent = `${caloriePlan.targetCalories} kcal`;

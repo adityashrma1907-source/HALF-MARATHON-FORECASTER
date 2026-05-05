@@ -1,8 +1,8 @@
-# Strava Half Marathon Forecaster
+# AthloFit.in
 
-This is now a small full-stack web app that can:
+This is now a small full-stack fitness web app that can:
 
-- sync your runs to your own account
+- sync your activity data to your own account
 - work across browsers and devices once deployed
 - estimate when different distance and time goals are realistic
 - give you weekly targets based on recent training data
@@ -37,9 +37,9 @@ This is now a small full-stack web app that can:
 Or:
 
 1. Open the manual entry section.
-2. Type each run with date, distance, and time.
-3. Or paste multiple runs as `YYYY-MM-DD, distance in km, hh:mm:ss`.
-4. Click **Analyze typed data**.
+2. Type each activity with date, distance, and time.
+3. Or paste multiple running entries as `YYYY-MM-DD, distance in km, hh:mm:ss`.
+4. Click **Analyze logged data**.
 
 You can also switch the forecast mode and add a goal date before analyzing.
 

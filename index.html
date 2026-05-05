@@ -3,18 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Running Goal Forecaster</title>
+    <title>AthloFit.in</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main class="shell">
       <section class="hero">
-        <p class="eyebrow">Strava-based readiness planner</p>
-        <h1>Forecast your next fitness goal.</h1>
+        <h1>AthloFit<span class="brand-accent">.in</span></h1>
         <p class="intro">
-          Use this from your laptop or phone, keep your activities synced to your own
-          account, and forecast targets like 5 km under 30 minutes or a
-          comfortable half marathon.
+          Train across running, strength, conditioning, and hybrid fitness with
+          one place to track activity, understand readiness, and plan what to do next.
         </p>
       </section>
 
@@ -71,15 +69,15 @@
       <section class="app-view" data-view="log">
         <section class="panel upload-panel">
           <div>
-            <label for="csvFile" class="upload-label">Choose Strava CSV</label>
+            <label for="csvFile" class="upload-label">Import activity CSV</label>
             <input id="csvFile" type="file" accept=".csv,text/csv" />
           </div>
-          <button id="analyzeButton" type="button">Analyze my runs</button>
+          <button id="analyzeButton" type="button">Analyze imported data</button>
           <p class="hint">
-            Expected source: Strava export file usually named
+            You can import a Strava export if you have one, usually named
             <code>activities.csv</code>.
           </p>
-          <p id="status" class="status">Waiting for file.</p>
+          <p id="status" class="status">Waiting for an import.</p>
         </section>
 
         <section class="panel manual-panel">
@@ -87,13 +85,14 @@
             <div>
               <h2 id="manualPanelHeading">Log activity manually</h2>
               <p id="manualPanelHint" class="hint">
-                Add workouts one at a time. Running activities power the current forecast.
+                Add workouts one at a time. Running entries power the current running forecast,
+                while all activity types feed your dashboard and training history.
                 <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>
               </p>
             </div>
             <div class="header-actions">
               <p id="editStateBadge" class="mode-badge">New activity</p>
-              <button id="useManualButton" type="button">Analyze typed data</button>
+              <button id="useManualButton" type="button">Analyze logged data</button>
             </div>
           </div>
 
@@ -195,7 +194,7 @@
       <section class="app-view" data-view="forecast">
         <section id="forecastEmpty" class="panel empty-panel">
           <h2>Forecast</h2>
-          <p class="goal-summary">Log a few runs, set a goal, and tap analyze to unlock the forecast view.</p>
+          <p class="goal-summary">Log a few workouts, set a goal, and analyze your data to unlock the forecast view.</p>
         </section>
 
         <section id="results" class="results hidden">
