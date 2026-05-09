@@ -1,10 +1,9 @@
-const fileInput = document.getElementById("csvFile");
-const analyzeButton = document.getElementById("analyzeButton");
 const useManualButton = document.getElementById("useManualButton");
 const manualForm = document.getElementById("manualForm");
 const activityTypeInput = document.getElementById("activityType");
 const runDateInput = document.getElementById("runDate");
 const runDistanceInput = document.getElementById("runDistance");
+const runDurationMinutesInput = document.getElementById("runDurationMinutes");
 const runTimeInput = document.getElementById("runTime");
 const activityCaloriesInput = document.getElementById("activityCalories");
 const activityNotesInput = document.getElementById("activityNotes");
@@ -29,7 +28,10 @@ const passwordInput = document.getElementById("passwordInput");
 const registerButton = document.getElementById("registerButton");
 const loginButton = document.getElementById("loginButton");
 const logoutButton = document.getElementById("logoutButton");
+const forgotPasswordButton = document.getElementById("forgotPasswordButton");
+const resendVerificationButton = document.getElementById("resendVerificationButton");
 const accountStatus = document.getElementById("accountStatus");
+const accountSecurityNote = document.getElementById("accountSecurityNote");
 const forecastEmptySection = document.getElementById("forecastEmpty");
 const navButtons = [...document.querySelectorAll("[data-view-target]")];
 const appViews = [...document.querySelectorAll("[data-view]")];
@@ -60,6 +62,12 @@ const dashboardElements = {
   calorieMaintenanceCard: document.getElementById("calorieMaintenanceCard"),
   proteinCard: document.getElementById("proteinCard"),
 };
+const sliderValueElements = {
+  goalDistance: document.getElementById("goalDistanceValue"),
+  runDistance: document.getElementById("runDistanceValue"),
+  runDuration: document.getElementById("runDurationValue"),
+  activityCalories: document.getElementById("activityCaloriesValue"),
+};
 
 const activities = [];
 const manualRuns = activities;
@@ -68,32 +76,21 @@ let editingActivityId = null;
 let activeView = "dashboard";
 const LOCAL_STATE_KEY = "athlofit-state-v1";
 const SESSION_KEY = "athlofit-session-v1";
+const PENDING_SYNC_KEY = "athlofit-pending-sync-v1";
 const authState = {
   token: null,
   email: null,
+  emailVerified: false,
 };
 
-analyzeButton.addEventListener("click", async () => {
-  const file = fileInput.files?.[0];
-  if (!file) {
-    setStatus("Choose an activity CSV file first.");
-    return;
+activityTypeInput.addEventListener("change", () => {
+  if (activityTypeInput.value !== "run" && Number.parseFloat(runDistanceInput.value) <= 0) {
+    runDistanceInput.value = "0";
   }
-
-  try {
-    setStatus("Reading your activity history...");
-    const text = await file.text();
-    const rows = parseCsv(text);
-    const activities = mapRowsToActivities(rows);
-
-    if (!activities.length) {
-      throw new Error("No rows could be parsed from the CSV.");
-    }
-
-    runAnalysis(activities, `Analyzed ${activities.length} imported activities.`);
-  } catch (error) {
-    handleAnalysisError(error, "Something went wrong while reading the file.");
+  if (activityTypeInput.value === "run" && Number.parseFloat(runDistanceInput.value) <= 0) {
+    runDistanceInput.value = "5";
   }
+  syncSliderDisplays();
 });
 
 manualForm.addEventListener("submit", async (event) => {
@@ -120,7 +117,7 @@ manualForm.addEventListener("submit", async (event) => {
     date,
     distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
     movingSeconds,
-    calories: Number.isFinite(calories) ? calories : null,
+    calories: Number.isFinite(calories) && calories > 0 ? calories : null,
     notes,
     source: "manual",
     verified: false,
@@ -203,6 +200,8 @@ manualRunsBody.addEventListener("click", async (event) => {
 registerButton.addEventListener("click", () => handleAuth("register"));
 loginButton.addEventListener("click", () => handleAuth("login"));
 logoutButton.addEventListener("click", handleLogout);
+forgotPasswordButton.addEventListener("click", handleForgotPassword);
+resendVerificationButton.addEventListener("click", handleResendVerification);
 cancelEditButton.addEventListener("click", resetActivityForm);
 
 for (const button of navButtons) {
@@ -213,7 +212,13 @@ forecastModeInput.addEventListener("change", () => {
   renderDashboard();
   void saveAppState();
 });
+goalDistanceInput.addEventListener("input", () => {
+  syncSliderDisplays();
+  renderDashboard();
+  void saveAppState();
+});
 goalDistanceInput.addEventListener("change", () => {
+  syncSliderDisplays();
   renderDashboard();
   void saveAppState();
 });
@@ -225,6 +230,9 @@ goalDateInput.addEventListener("change", () => {
   renderDashboard();
   void saveAppState();
 });
+runDistanceInput.addEventListener("input", syncSliderDisplays);
+runDurationMinutesInput.addEventListener("input", syncSliderDisplays);
+activityCaloriesInput.addEventListener("input", syncSliderDisplays);
 bulkRunsInput.addEventListener("input", () => void saveAppState());
 authForm.addEventListener("submit", (event) => event.preventDefault());
 for (const input of Object.values(profileInputs)) {
@@ -237,6 +245,21 @@ for (const input of Object.values(profileInputs)) {
     void saveAppState();
   });
 }
+
+window.addEventListener("online", () => {
+  if (authState.token) {
+    void flushPendingSync("Back online. Syncing your latest changes...").catch((error) => {
+      console.error(error);
+      setStatus("Back online, but sync still needs another try.");
+    });
+  } else {
+    setStatus("Back online. Your local device copy is still here.");
+  }
+});
+
+window.addEventListener("offline", () => {
+  setStatus("You're offline. Changes will stay on this device and sync later.");
+});
 
 initializeApp();
 
@@ -252,6 +275,7 @@ async function initializeApp() {
   setActiveView(activeView);
   renderManualRuns();
   renderDashboard();
+  syncSliderDisplays();
   updateAccountUI();
   await restoreSessionAndSync();
 }
@@ -270,13 +294,16 @@ async function restoreSessionAndSync() {
 
     authState.token = session.token;
     authState.email = session.email;
+    authState.emailVerified = Boolean(session.emailVerified);
     updateAccountUI();
+    await refreshAccountMeta();
     await syncFromCloud();
-    setStatus(`Signed in as ${authState.email}.`);
+    if (!hasPendingSync()) {
+      setStatus(`Signed in as ${authState.email}.`);
+    }
   } catch (error) {
     console.error(error);
-    clearSession();
-    updateAccountUI();
+    setStatus("Using your local device data for now. Cloud sync can retry later.");
   }
 }
 
@@ -298,11 +325,13 @@ async function handleAuth(mode) {
 
     authState.token = payload.sessionToken;
     authState.email = payload.email;
+    authState.emailVerified = Boolean(payload.emailVerified);
     persistSession();
     updateAccountUI();
     passwordInput.value = "";
+    await refreshAccountMeta();
     await syncFromCloud();
-    setStatus(mode === "register" ? "Account created and synced." : "Signed in and synced.");
+    setStatus(getAuthSuccessMessage(mode, payload));
   } catch (error) {
     console.error(error);
     setStatus(error.message || "Could not sign you in.");
@@ -310,10 +339,26 @@ async function handleAuth(mode) {
 }
 
 async function handleLogout() {
+  const existingToken = authState.token;
+  const hadSession = Boolean(existingToken);
   authState.token = null;
   authState.email = null;
+  authState.emailVerified = false;
   clearSession();
   updateAccountUI();
+  if (hadSession) {
+    try {
+      await apiFetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${existingToken}`,
+        },
+        skipAuthReset: true,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
   setStatus("Signed out. Local copy is still available on this device.");
 }
 
@@ -323,6 +368,7 @@ function persistSession() {
     JSON.stringify({
       token: authState.token,
       email: authState.email,
+      emailVerified: authState.emailVerified,
     }),
   );
 }
@@ -333,8 +379,76 @@ function clearSession() {
 
 function updateAccountUI() {
   const signedIn = Boolean(authState.token);
-  accountStatus.textContent = signedIn ? `Signed in as ${authState.email}` : "Not signed in";
+  accountStatus.textContent = signedIn
+    ? `Signed in as ${authState.email}${authState.emailVerified ? " • Verified" : " • Unverified"}`
+    : "Not signed in";
   logoutButton.style.display = signedIn ? "inline-flex" : "none";
+  resendVerificationButton.style.display = signedIn && !authState.emailVerified ? "inline-flex" : "none";
+  accountSecurityNote.textContent = signedIn
+    ? authState.emailVerified
+      ? "Your email is verified. Account recovery can work safely once reset emails are configured."
+      : "Verify your email to secure recovery and future premium features."
+    : "Verify your email to secure recovery and future premium features.";
+}
+
+async function refreshAccountMeta() {
+  if (!authState.token) {
+    return;
+  }
+
+  try {
+    const payload = await apiFetch("/api/auth/me");
+    authState.email = payload.email || authState.email;
+    authState.emailVerified = Boolean(payload.emailVerified);
+    persistSession();
+    updateAccountUI();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function handleForgotPassword() {
+  const email = emailInput.value.trim().toLowerCase();
+
+  if (!email) {
+    setStatus("Enter your email first so we know where to send the reset link.");
+    return;
+  }
+
+  try {
+    setStatus("Preparing your reset request...");
+    const payload = await apiFetch("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+    setStatus(payload.message || "If that email exists, we sent a reset link.");
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Could not start password reset.");
+  }
+}
+
+async function handleResendVerification() {
+  if (!authState.token) {
+    setStatus("Sign in first, then we can resend your verification email.");
+    return;
+  }
+
+  try {
+    setStatus("Preparing your verification email...");
+    const payload = await apiFetch("/api/auth/resend-verification", {
+      method: "POST",
+    });
+    if (typeof payload.emailVerified !== "undefined") {
+      authState.emailVerified = Boolean(payload.emailVerified);
+      persistSession();
+      updateAccountUI();
+    }
+    setStatus(payload.message || "Verification email prepared.");
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Could not resend verification email.");
+  }
 }
 
 async function syncFromCloud() {
@@ -342,10 +456,25 @@ async function syncFromCloud() {
     return;
   }
 
-  const remoteState = await apiFetch("/api/state");
   const localState = getCurrentState();
-  const hasRemoteData = hasAnyData(remoteState);
   const hasLocalData = hasAnyData(localState);
+  const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+
+  if (isOffline) {
+    if (hasLocalData) {
+      markPendingSync();
+    }
+    setStatus("You're offline. Using your saved device data for now.");
+    return;
+  }
+
+  if (hasPendingSync() && hasLocalData) {
+    await flushPendingSync();
+    return;
+  }
+
+  const remoteState = await apiFetch("/api/state");
+  const hasRemoteData = hasAnyData(remoteState);
 
   if (hasRemoteData) {
     applyState(remoteState);
@@ -355,6 +484,7 @@ async function syncFromCloud() {
 
   if (hasLocalData) {
     await pushStateToCloud(localState);
+    clearPendingSync();
     setStatus("Moved your current device data into your account.");
   }
 }
@@ -367,10 +497,18 @@ async function saveAppState() {
     return;
   }
 
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    markPendingSync();
+    setStatus("Saved offline on this device. We'll sync when you're back online.");
+    return;
+  }
+
   try {
     await pushStateToCloud(state);
+    clearPendingSync();
   } catch (error) {
     console.error(error);
+    markPendingSync();
     setStatus("Saved on this device, but cloud sync failed for now.");
   }
 }
@@ -439,17 +577,21 @@ function applyState(state) {
   goalDistanceInput.value = state?.goalDistanceKm || "21.1";
   targetTimeInput.value = state?.targetTime || "";
   goalDateInput.value = state?.goalDate || "";
+  syncSliderDisplays();
   renderManualRuns();
   renderDashboard();
 }
 
 function hasAnyData(state) {
+  const goalDistanceKm = Number(state?.goalDistanceKm || 21.1);
   return Boolean(
     state?.activities?.length ||
       state?.manualRuns?.length ||
       state?.bulkRuns?.trim() ||
       state?.profile?.weightKg ||
-      state?.goalDistanceKm ||
+      Math.abs(goalDistanceKm - 21.1) > 0.01 ||
+      state?.goalDate?.trim() ||
+      state?.forecastMode === "race" ||
       state?.targetTime?.trim(),
   );
 }
@@ -462,12 +604,13 @@ async function pushStateToCloud(state) {
 }
 
 async function apiFetch(url, options = {}) {
+  const { skipAuthReset, ...requestOptions } = options;
   const response = await fetch(url, {
-    ...options,
+    ...requestOptions,
     headers: {
       "Content-Type": "application/json",
       ...(authState.token ? { Authorization: `Bearer ${authState.token}` } : {}),
-      ...(options.headers || {}),
+      ...(requestOptions.headers || {}),
     },
   });
 
@@ -477,16 +620,61 @@ async function apiFetch(url, options = {}) {
     : { error: await response.text() };
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && !skipAuthReset) {
       clearSession();
       authState.token = null;
       authState.email = null;
+      authState.emailVerified = false;
       updateAccountUI();
     }
     throw new Error(payload.error || "Request failed.");
   }
 
   return payload;
+}
+
+async function flushPendingSync(statusMessage = "Offline changes synced to your account.") {
+  if (!authState.token || !hasPendingSync()) {
+    return false;
+  }
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return false;
+  }
+
+  await pushStateToCloud(getCurrentState());
+  clearPendingSync();
+  setStatus(statusMessage);
+  return true;
+}
+
+function hasPendingSync() {
+  return localStorage.getItem(PENDING_SYNC_KEY) === "true";
+}
+
+function markPendingSync() {
+  localStorage.setItem(PENDING_SYNC_KEY, "true");
+}
+
+function clearPendingSync() {
+  localStorage.removeItem(PENDING_SYNC_KEY);
+}
+
+function getAuthSuccessMessage(mode, payload) {
+  if (mode === "register") {
+    if (payload.message) {
+      return `Account created and synced. ${payload.message}`;
+    }
+    if (!payload.emailVerified) {
+      return "Account created and synced. Check your email to verify your account.";
+    }
+    return "Account created and synced.";
+  }
+
+  if (payload.emailVerified) {
+    return "Signed in and synced.";
+  }
+
+  return "Signed in and synced. Your email is still unverified.";
 }
 
 function runAnalysis(activities, successMessage) {
@@ -539,10 +727,12 @@ function startEditingActivity(activity) {
   editingActivityId = activity.id;
   activityTypeInput.value = activity.type;
   runDateInput.value = formatInputDate(activity.date);
-  runDistanceInput.value = activity.distanceKm || "";
+  runDistanceInput.value = activity.distanceKm || 5;
+  runDurationMinutesInput.value = Math.max(5, roundToNearestFive((activity.movingSeconds || 2700) / 60));
   runTimeInput.value = formatDuration(activity.movingSeconds);
-  activityCaloriesInput.value = activity.calories || "";
+  activityCaloriesInput.value = activity.calories || 0;
   activityNotesInput.value = activity.notes || "";
+  syncSliderDisplays();
   addRunButton.textContent = "Save changes";
   cancelEditButton.classList.remove("hidden-button");
   editStateBadge.textContent = `Editing ${formatActivityType(activity.type)}`;
@@ -557,12 +747,16 @@ function resetActivityForm() {
   manualForm.reset();
   runDateInput.value = formatInputDate(new Date());
   activityTypeInput.value = "run";
+  runDistanceInput.value = "5";
+  runDurationMinutesInput.value = "45";
+  activityCaloriesInput.value = "0";
+  syncSliderDisplays();
   addRunButton.textContent = "Add activity";
   cancelEditButton.classList.add("hidden-button");
   editStateBadge.textContent = "New activity";
   manualPanelHeading.textContent = "Log activity manually";
   manualPanelHint.innerHTML =
-    'Add workouts one at a time. Running activities power the current forecast. <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>';
+    'Use the sliders to log a workout quickly. Running entries power the current running forecast, while all activity types feed your dashboard and history. <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>';
 }
 
 function getProfileState() {
@@ -892,103 +1086,6 @@ function sortManualRuns() {
   manualRuns.sort((a, b) => a.date - b.date);
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let current = "";
-  let row = [];
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const next = text[index + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      row.push(current);
-      current = "";
-      continue;
-    }
-
-    if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && next === "\n") {
-        index += 1;
-      }
-      row.push(current);
-      if (row.some((cell) => cell.trim() !== "")) {
-        rows.push(row);
-      }
-      row = [];
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  if (current.length || row.length) {
-    row.push(current);
-    rows.push(row);
-  }
-
-  const headers = rows.shift()?.map((header) => header.trim()) || [];
-  return rows.map((cells) =>
-    Object.fromEntries(headers.map((header, index) => [header, (cells[index] || "").trim()])),
-  );
-}
-
-function mapRowsToActivities(rows) {
-  return rows
-    .map((row) => {
-      const type = readField(row, ["Activity Type", "Type", "Sport Type"]);
-      const dateValue = readField(row, ["Activity Date", "Date", "Start Date"]);
-      const distanceValue = readField(row, ["Distance", "Distance.1"]);
-      const movingTimeValue = readField(row, ["Moving Time", "Elapsed Time", "Duration"]);
-      const paceValue = readField(row, ["Average Pace", "Avg Pace"]);
-      const title = readField(row, ["Activity Name", "Title", "Name"]);
-
-      const date = parseDate(dateValue);
-      const distanceKm = parseDistanceToKm(distanceValue);
-      const movingSeconds =
-        parseDurationToSeconds(movingTimeValue) ||
-        inferSecondsFromPace(distanceKm, paceValue);
-
-      return {
-        title: title || "Untitled activity",
-        type: (type || "").toLowerCase(),
-        date,
-        distanceKm,
-        movingSeconds,
-      };
-    })
-    .filter(
-      (activity) =>
-        activity.date instanceof Date &&
-        !Number.isNaN(activity.date.valueOf()) &&
-        Number.isFinite(activity.distanceKm) &&
-        activity.distanceKm > 0 &&
-        activity.type.includes("run"),
-    )
-    .sort((a, b) => a.date - b.date);
-}
-
-function readField(row, candidates) {
-  for (const key of candidates) {
-    if (row[key]) {
-      return row[key];
-    }
-  }
-  return "";
-}
-
 function parseDate(value) {
   if (!value) {
     return null;
@@ -1056,6 +1153,44 @@ function parseTargetTimeToSeconds(value) {
   return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes * 60) : null;
 }
 
+function formatDurationFromMinutes(totalMinutes) {
+  const safeMinutes = Math.max(0, Math.round(totalMinutes));
+  const hours = Math.floor(safeMinutes / 60);
+  const minutes = safeMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+}
+
+function formatMinutesLabel(totalMinutes) {
+  const safeMinutes = Math.max(0, Math.round(totalMinutes));
+  if (safeMinutes < 60) {
+    return `${safeMinutes} min`;
+  }
+
+  const hours = Math.floor(safeMinutes / 60);
+  const minutes = safeMinutes % 60;
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+function roundToNearestFive(value) {
+  return Math.round(value / 5) * 5;
+}
+
+function syncSliderDisplays() {
+  const goalDistanceKm = Number.parseFloat(goalDistanceInput.value) || 21.1;
+  const activityDistanceKm = Number.parseFloat(runDistanceInput.value);
+  const durationMinutes = Number.parseInt(runDurationMinutesInput.value, 10) || 45;
+  const calories = Number.parseInt(activityCaloriesInput.value, 10) || 0;
+
+  runTimeInput.value = formatDurationFromMinutes(durationMinutes);
+  sliderValueElements.goalDistance.textContent = `${round1(goalDistanceKm)} km`;
+  sliderValueElements.runDistance.textContent =
+    Number.isFinite(activityDistanceKm) && activityDistanceKm > 0
+      ? `${round1(activityDistanceKm)} km`
+      : "No distance";
+  sliderValueElements.runDuration.textContent = formatMinutesLabel(durationMinutes);
+  sliderValueElements.activityCalories.textContent = calories > 0 ? `${calories} kcal` : "Not set";
+}
+
 function inferSecondsFromPace(distanceKm, paceValue) {
   if (!distanceKm || !paceValue) {
     return null;
@@ -1119,6 +1254,8 @@ function analyzeActivities(activities, options) {
       .map((run) => run.movingSeconds / run.distanceKm),
   );
   const paceTrendSeconds = getPaceTrendSeconds(recent6Weeks);
+  const mostRecentRun = [...recent12Weeks].sort((a, b) => b.date - a.date)[0];
+  const daysSinceLastRun = mostRecentRun ? daysBetween(mostRecentRun.date, today) : 999;
   const mode = options.mode === "race" ? "race" : "comfort";
   const targetConfig = getTargetConfig({
     mode,
@@ -1126,7 +1263,7 @@ function analyzeActivities(activities, options) {
     targetTimeSeconds: options.targetTimeSeconds,
   });
   const bestPaceSecPerKm = getBestRelevantPace(recent12Weeks, targetConfig.goalDistanceKm);
-  const readinessScore = getReadinessScore({
+  const baselineReadinessScore = getReadinessScore({
     consistencyRatio,
     comfortableLongRunKm,
     avgWeeklyKm,
@@ -1135,6 +1272,8 @@ function analyzeActivities(activities, options) {
     targetConfig,
     bestPaceSecPerKm,
   });
+  const inactivityPenaltyScore = daysSinceLastRun > 7 ? Math.min(20, (daysSinceLastRun - 7) * 2) : 0;
+  const readinessScore = Math.max(1, baselineReadinessScore - inactivityPenaltyScore);
   const readinessLabel = getReadinessLabel(readinessScore, mode);
   const requiredLongRunKm = targetConfig.longRunKm;
   const requiredWeeklyKm = targetConfig.weeklyKm;
@@ -1156,17 +1295,20 @@ function analyzeActivities(activities, options) {
   const consistencyPenalty = consistencyRatio >= 0.75 ? 0 : consistencyRatio >= 0.5 ? 1 : 2;
   const missedWeekPenalty = Math.min(2, missedWeeks);
   const pacePenalty = paceTrendSeconds <= -8 ? -1 : paceTrendSeconds >= 10 ? 1 : 0;
+  const inactivityPenaltyWeeks = daysSinceLastRun > 7 ? Math.min(3, Math.ceil((daysSinceLastRun - 7) / 7)) : 0;
   const baseWeeks =
     Math.max(weeksForLongRun, weeksForVolume, weeksForPace, 1) +
     consistencyPenalty +
     missedWeekPenalty +
-    pacePenalty;
+    pacePenalty +
+    inactivityPenaltyWeeks;
   const forecastDate = addDays(today, baseWeeks * 7);
   const confidence = getConfidenceLabel({
     consistencyRatio,
     comfortableLongRunKm,
     avgWeeklyKm,
     readinessScore,
+    daysSinceLastRun,
   });
   const goalAssessment = assessGoalDate({
     goalDate: options.goalDate,
@@ -1184,6 +1326,7 @@ function analyzeActivities(activities, options) {
     confidence,
     readinessScore,
     readinessLabel,
+    daysSinceLastRun,
     comfortableLongRunKm,
     averagePaceSecPerKm,
     avgWeeklyKm,
@@ -1210,6 +1353,7 @@ function analyzeActivities(activities, options) {
       baseWeeks,
       paceTrendSeconds,
       targetConfig,
+      daysSinceLastRun,
     }),
     notes: buildNotes({
       recent12Weeks,
@@ -1218,6 +1362,7 @@ function analyzeActivities(activities, options) {
       comfortableLongRunKm,
       targetConfig,
       goalDate: options.goalDate,
+      daysSinceLastRun,
     }),
     charts: buildChartSeries(weeklyBuckets),
   };
@@ -1422,6 +1567,7 @@ function buildInsights({
   baseWeeks,
   paceTrendSeconds,
   targetConfig,
+  daysSinceLastRun,
 }) {
   const insights = [
     `Recent average volume is ${formatKm(avgWeeklyKm)} per week.`,
@@ -1450,11 +1596,24 @@ function buildInsights({
   } else if (paceTrendSeconds >= 10) {
     insights.push("Recent pace has drifted slower, so the forecast adds a small caution penalty.");
   }
+  if (daysSinceLastRun > 7) {
+    insights.push(
+      `Your last logged run was ${daysSinceLastRun} days ago, so the model is adding a small caution buffer until training is regular again.`,
+    );
+  }
 
   return insights;
 }
 
-function buildNotes({ recent12Weeks, recent8Weeks, avgWeeklyKm, comfortableLongRunKm, targetConfig, goalDate }) {
+function buildNotes({
+  recent12Weeks,
+  recent8Weeks,
+  avgWeeklyKm,
+  comfortableLongRunKm,
+  targetConfig,
+  goalDate,
+  daysSinceLastRun,
+}) {
   const notes = [
     "This model uses only the last 12 weeks so it reflects current fitness more than old peak form.",
     "Distance readiness means enough long-run durability plus enough weekly volume, not just one isolated effort.",
@@ -1475,6 +1634,9 @@ function buildNotes({ recent12Weeks, recent8Weeks, avgWeeklyKm, comfortableLongR
   }
   if (goalDate) {
     notes.push("Goal-date assessment is based on the current trend, not guaranteed race-day performance.");
+  }
+  if (daysSinceLastRun > 7) {
+    notes.push("A gap of more than 7 days since the last run reduces confidence and pushes the forecast out slightly.");
   }
 
   return notes;
@@ -1721,12 +1883,13 @@ function formatInputDate(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-function getConfidenceLabel({ consistencyRatio, comfortableLongRunKm, avgWeeklyKm, readinessScore }) {
+function getConfidenceLabel({ consistencyRatio, comfortableLongRunKm, avgWeeklyKm, readinessScore, daysSinceLastRun }) {
   const score =
     (consistencyRatio >= 0.75 ? 2 : consistencyRatio >= 0.5 ? 1 : 0) +
     (comfortableLongRunKm >= 14 ? 2 : comfortableLongRunKm >= 10 ? 1 : 0) +
     (avgWeeklyKm >= 30 ? 2 : avgWeeklyKm >= 20 ? 1 : 0) +
-    (readinessScore >= 70 ? 2 : readinessScore >= 50 ? 1 : 0);
+    (readinessScore >= 70 ? 2 : readinessScore >= 50 ? 1 : 0) -
+    (daysSinceLastRun > 14 ? 2 : daysSinceLastRun > 7 ? 1 : 0);
 
   if (score >= 6) {
     return "High confidence: recent data is lining up well.";

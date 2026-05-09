@@ -104,25 +104,12 @@
       </section>
 
       <section class="app-view" data-view="log">
-        <section class="panel upload-panel">
-          <div>
-            <label for="csvFile" class="upload-label">Import activity CSV</label>
-            <input id="csvFile" type="file" accept=".csv,text/csv" />
-          </div>
-          <button id="analyzeButton" type="button">Analyze imported data</button>
-          <p class="hint">
-            You can import a Strava export if you have one, usually named
-            <code>activities.csv</code>.
-          </p>
-          <p id="status" class="status">Waiting for an import.</p>
-        </section>
-
         <section class="panel manual-panel">
           <div class="manual-header">
             <div>
               <h2 id="manualPanelHeading">Log activity manually</h2>
               <p id="manualPanelHint" class="hint">
-                Add workouts one at a time. Running entries power the current running forecast,
+                Use the sliders to log a workout quickly. Running entries power the current running forecast,
                 while all activity types feed your dashboard and training history.
                 <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>
               </p>
@@ -132,6 +119,7 @@
               <button id="useManualButton" type="button">Analyze logged data</button>
             </div>
           </div>
+          <p id="status" class="status">Ready for your first activity.</p>
 
           <div class="settings-grid">
             <label>
@@ -141,9 +129,12 @@
                 <option value="race">Race target</option>
               </select>
             </label>
-            <label>
-              Goal distance (km)
-              <input id="goalDistance" type="number" min="1" step="0.1" value="21.1" />
+            <label class="slider-field">
+              <span class="slider-head">
+                <span>Goal distance</span>
+                <strong id="goalDistanceValue">21.1 km</strong>
+              </span>
+              <input id="goalDistance" type="range" min="1" max="42.2" step="0.5" value="21.1" />
             </label>
             <label>
               Target time
@@ -171,17 +162,27 @@
               Date
               <input id="runDate" type="date" />
             </label>
-            <label>
-              Distance (km)
-              <input id="runDistance" type="number" min="0" step="0.1" placeholder="8.5" />
+            <label class="slider-field">
+              <span class="slider-head">
+                <span>Distance</span>
+                <strong id="runDistanceValue">5.0 km</strong>
+              </span>
+              <input id="runDistance" type="range" min="0" max="50" step="0.5" value="5" />
             </label>
-            <label>
-              Time (hh:mm:ss)
-              <input id="runTime" type="text" placeholder="00:52:30" />
+            <label class="slider-field">
+              <span class="slider-head">
+                <span>Duration</span>
+                <strong id="runDurationValue">45 min</strong>
+              </span>
+              <input id="runDurationMinutes" type="range" min="5" max="300" step="5" value="45" />
+              <input id="runTime" type="hidden" value="00:45:00" />
             </label>
-            <label>
-              Calories
-              <input id="activityCalories" type="number" min="0" step="1" placeholder="optional" />
+            <label class="slider-field">
+              <span class="slider-head">
+                <span>Calories</span>
+                <strong id="activityCaloriesValue">Not set</strong>
+              </span>
+              <input id="activityCalories" type="range" min="0" max="2000" step="25" value="0" />
             </label>
             <label class="wide-field">
               Notes
@@ -195,7 +196,7 @@
 
           <div class="manual-grid">
             <div>
-              <label for="bulkRuns" class="upload-label">Paste multiple runs</label>
+              <label for="bulkRuns" class="upload-label">Quick add many runs (advanced)</label>
               <textarea
                 id="bulkRuns"
                 rows="8"
@@ -340,6 +341,14 @@
             <button id="registerButton" type="button" class="secondary-button strong-button">Create account</button>
             <button id="loginButton" type="button">Sign in</button>
           </form>
+
+          <div class="auth-inline-actions">
+            <button id="forgotPasswordButton" type="button" class="secondary-button">Forgot password</button>
+            <button id="resendVerificationButton" type="button" class="secondary-button">Resend verification</button>
+          </div>
+          <p id="accountSecurityNote" class="hint">
+            Verify your email to secure recovery and future premium features.
+          </p>
 
           <div class="auth-actions">
             <button id="logoutButton" type="button" class="secondary-button">Sign out</button>

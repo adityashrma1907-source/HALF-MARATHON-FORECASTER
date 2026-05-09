@@ -23,16 +23,28 @@ This is now a small full-stack fitness web app that can:
 - simple charts for weekly distance and long-run trend
 - a smarter `next 4 weeks` planner with a cutback week
 - account sign-up and sign-in
+- email verification + password-reset scaffolding
 - backend cloud-style persistence with SQLite
 
 ## Run it locally
 
+Windows:
+
 1. Double-click [start.bat](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\start.bat).
 2. Your browser should open `http://localhost:3000`.
-3. Create an account or sign in.
-4. Complete your profile for calorie/protein estimates.
-5. Set your goal distance and optional target time.
-6. Log activities manually or upload your CSV.
+
+Mac:
+
+1. Run [start.command](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\start.command).
+2. If macOS blocks double-clicking it, open Terminal in the project folder and run `bash start.command`.
+3. Your browser should open `http://localhost:3000`.
+
+Then:
+
+1. Create an account or sign in.
+2. Complete your profile for calorie/protein estimates.
+3. Set your goal distance and optional target time.
+4. Log activities manually.
 
 Or:
 
@@ -50,6 +62,8 @@ You can also switch the forecast mode and add a goal date before analyzing.
 - [index.html](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\index.html): app layout
 - [style.css](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\style.css): styling
 - [data.sqlite](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\data.sqlite): created automatically when the server starts
+- [AUTH_UPGRADE_PLAN.md](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\AUTH_UPGRADE_PLAN.md): next sprint plan for email verification and forgot password
+- [WORK_FROM_HOME.md](C:\Users\Aditya\Documents\Codex\2026-04-24-can-we-build-an-app-program\WORK_FROM_HOME.md): how to use, clone, and run the project from your home laptop
 
 ## What "comfortable" means
 
@@ -70,6 +84,26 @@ To access it from your phone or any browser, this app needs to be deployed to a 
 9. Sign in with the same account to see the same saved data.
 
 The app automatically stores SQLite data at Railway's volume path when `RAILWAY_VOLUME_MOUNT_PATH` is available. Locally, it stores data in `data.sqlite`.
+
+## Email scaffolding
+
+The backend now includes:
+
+- verification-email token flow
+- resend verification endpoint
+- forgot-password endpoint
+- reset-password endpoint
+- optional Resend integration
+
+To turn on real email delivery in deployment, set:
+
+```text
+APP_BASE_URL=https://your-app-domain
+EMAIL_FROM=no-reply@your-domain
+RESEND_API_KEY=your_resend_key
+```
+
+If those are not configured yet, the server falls back to preview links in the server logs so the flow can still be tested during development.
 
 ## Current assumptions
 

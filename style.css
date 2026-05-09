@@ -449,6 +449,23 @@ button:active {
   color: var(--ink-soft);
 }
 
+.slider-field {
+  align-content: start;
+}
+
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.slider-head strong {
+  color: var(--accent-deep);
+  font-size: 0.95rem;
+}
+
 .calorie-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -469,6 +486,13 @@ button:active {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.auth-inline-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 12px;
 }
 
 .mode-badge {
@@ -505,6 +529,7 @@ input[type="date"],
 input[type="email"],
 input[type="number"],
 input[type="password"],
+input[type="range"],
 input[type="text"],
 select,
 textarea {
@@ -529,6 +554,15 @@ textarea:focus {
 textarea {
   resize: vertical;
   min-height: 180px;
+}
+
+input[type="range"] {
+  padding: 0;
+  height: 18px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--accent-deep);
 }
 
 .manual-grid,
@@ -819,7 +853,8 @@ code {
   .manual-header,
   .runs-header,
   .auth-actions,
-  .header-actions {
+  .header-actions,
+  .auth-inline-actions {
     flex-direction: column;
   }
 
