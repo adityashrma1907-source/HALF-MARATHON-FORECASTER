@@ -9,11 +9,40 @@
   <body>
     <main class="shell">
       <section class="hero">
-        <h1>AthloFit<span class="brand-accent">.in</span></h1>
-        <p class="intro">
-          Train across running, strength, conditioning, and hybrid fitness with
-          one place to track activity, understand readiness, and plan what to do next.
-        </p>
+        <div class="hero-shell">
+          <div class="hero-copy">
+            <p class="eyebrow">Fitness Forecast Platform</p>
+            <h1>AthloFit<span class="brand-accent">.in</span></h1>
+            <p class="intro">
+              Train across running, strength, conditioning, and hybrid fitness with
+              one place to track activity, understand readiness, and plan what to do next.
+            </p>
+            <div class="hero-highlights" aria-label="Product highlights">
+              <span class="highlight-pill">Forecast goals</span>
+              <span class="highlight-pill">Track calories</span>
+              <span class="highlight-pill">Sync your account</span>
+            </div>
+          </div>
+
+          <aside class="hero-card panel">
+            <p class="card-kicker">Why it feels different</p>
+            <h2>Your training, turned into a next step.</h2>
+            <div class="hero-points">
+              <article class="hero-point">
+                <span class="hero-point-label">Readiness</span>
+                <p>See how close you are to a distance or time goal instead of just logging workouts.</p>
+              </article>
+              <article class="hero-point">
+                <span class="hero-point-label">Range</span>
+                <p>Keep running, strength, HIIT, HYROX, and general fitness activity in one account.</p>
+              </article>
+              <article class="hero-point">
+                <span class="hero-point-label">Clarity</span>
+                <p>Know what to do this week with a dashboard built around targets, trends, and momentum.</p>
+              </article>
+            </div>
+          </aside>
+        </div>
       </section>
 
       <nav class="app-nav" aria-label="App sections">
@@ -24,13 +53,21 @@
       </nav>
 
       <section class="app-view active" data-view="dashboard">
+        <section class="section-heading">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h2>Your command center</h2>
+          </div>
+          <p class="section-note">The fastest read on your goal, energy target, training load, and current momentum.</p>
+        </section>
+
         <section class="dashboard-grid">
           <article class="dashboard-card main-card">
             <p class="card-kicker">Current goal</p>
             <h2 id="dashboardGoal">Comfortable 21.1 km</h2>
             <p id="dashboardForecast" class="dashboard-note">Add activities and analyze to see your forecast.</p>
           </article>
-          <article class="dashboard-card">
+          <article class="dashboard-card soft-accent-card">
             <p class="card-kicker">Calories</p>
             <p id="dashboardCalories" class="dashboard-number">-</p>
             <p id="dashboardProtein" class="dashboard-note">Complete your profile.</p>
@@ -53,7 +90,7 @@
             <p id="dashboardMaintenance" class="dashboard-number">-</p>
             <p class="dashboard-note">Maintenance calories</p>
           </article>
-          <article class="dashboard-card">
+          <article class="dashboard-card soft-accent-card">
             <p class="card-kicker">Training load</p>
             <p id="dashboardBurn" class="dashboard-number">0 kcal</p>
             <p class="dashboard-note">Estimated weekly burn from logged activity</p>
