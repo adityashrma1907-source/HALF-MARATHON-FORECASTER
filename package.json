@@ -1,8 +1,8 @@
 {
-  "name": "strava-half-forecaster",
+  "name": "athlofit-in",
   "version": "1.0.0",
   "private": true,
-  "description": "Half marathon readiness forecaster with account-backed sync.",
+  "description": "AthloFit guidance-first fitness forecasting app with account-backed sync.",
   "engines": {
     "node": ">=24"
   },

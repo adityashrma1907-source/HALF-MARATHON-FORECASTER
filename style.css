@@ -233,6 +233,13 @@ button:active {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 24px;
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  padding: 10px;
+  border-radius: 24px;
+  background: rgba(244, 248, 249, 0.78);
+  backdrop-filter: blur(12px);
 }
 
 .app-nav .nav-chip {
@@ -288,13 +295,13 @@ button:active {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 2fr repeat(3, 1fr);
+  grid-template-columns: 1.45fr 1fr 1fr;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.secondary-grid {
-  grid-template-columns: repeat(3, 1fr);
+.secondary-dashboard-grid {
+  grid-template-columns: 1.3fr 1fr;
 }
 
 .dashboard-card {
@@ -380,6 +387,28 @@ button:active {
   line-height: 1.52;
 }
 
+.dashboard-copy {
+  margin: 0 0 12px;
+  font-size: 1.12rem;
+  line-height: 1.45;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.dashboard-status-pill {
+  display: inline-flex;
+  align-items: center;
+  margin: 18px 0 0;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: white;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .mini-card {
   padding: 20px;
   border-radius: 20px;
@@ -396,20 +425,14 @@ button:active {
   letter-spacing: -0.04em;
 }
 
-.upload-panel,
 .auth-panel,
 .manual-panel,
 .profile-panel,
+.forecast-setup-panel,
+.onboarding-panel,
 .empty-panel {
   padding: 24px;
   margin-bottom: 24px;
-}
-
-.upload-panel {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 18px;
-  align-items: end;
 }
 
 .account-status {
@@ -471,6 +494,60 @@ button:active {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin: 22px 0 0;
+}
+
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.onboarding-step {
+  padding: 20px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(240, 251, 252, 0.88));
+  border: 1px solid rgba(15, 20, 24, 0.08);
+  box-shadow: var(--shadow-soft);
+}
+
+.onboarding-step h3 {
+  margin: 16px 0 10px;
+  font-size: 1.02rem;
+  font-family: "Sora", "Manrope", sans-serif;
+}
+
+.onboarding-step p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgba(15, 20, 24, 0.06);
+  border: 1px solid rgba(15, 20, 24, 0.08);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.step-badge.active {
+  background: rgba(18, 196, 212, 0.1);
+  border-color: rgba(18, 196, 212, 0.18);
+  color: var(--accent-deep);
+}
+
+.step-badge.done {
+  background: rgba(21, 150, 105, 0.12);
+  border-color: rgba(21, 150, 105, 0.18);
+  color: var(--success);
 }
 
 .manual-header,
@@ -565,7 +642,6 @@ input[type="range"] {
   accent-color: var(--accent-deep);
 }
 
-.manual-grid,
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -591,15 +667,6 @@ input[type="range"] {
   display: inline-block;
   margin-bottom: 10px;
   font-weight: 700;
-}
-
-input[type="file"] {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px dashed rgba(18, 196, 212, 0.28);
-  background: rgba(239, 253, 254, 0.74);
 }
 
 .hint,
@@ -656,6 +723,37 @@ input[type="file"] {
   margin: 0;
   color: var(--muted);
   line-height: 1.62;
+}
+
+.empty-actions {
+  margin-top: 18px;
+}
+
+.advanced-panel {
+  margin-top: 20px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 20, 24, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.advanced-panel summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--ink);
+  list-style: none;
+}
+
+.advanced-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-panel[open] summary {
+  margin-bottom: 12px;
+}
+
+.advanced-panel .hint {
+  margin-bottom: 12px;
 }
 
 .results {
@@ -777,10 +875,10 @@ code {
     grid-template-columns: 1fr 1fr;
   }
 
-  .secondary-grid,
+  .secondary-dashboard-grid,
+  .onboarding-grid,
   .calorie-cards,
   .two-col,
-  .manual-grid,
   .auth-form,
   .profile-grid,
   .settings-grid,
@@ -805,10 +903,11 @@ code {
   }
 
   .hero-card,
-  .upload-panel,
   .auth-panel,
   .manual-panel,
   .profile-panel,
+  .forecast-setup-panel,
+  .onboarding-panel,
   .empty-panel {
     padding: 20px;
   }
@@ -818,11 +917,10 @@ code {
     grid-template-columns: 1fr 1fr;
   }
 
-  .upload-panel,
   .dashboard-grid,
   .summary-grid,
   .two-col,
-  .manual-grid,
+  .onboarding-grid,
   .calorie-cards,
   .auth-form,
   .profile-grid,
@@ -860,7 +958,8 @@ code {
 
   .dashboard-card,
   .metric-card,
-  .mini-card {
+  .mini-card,
+  .onboarding-step {
     border-radius: 20px;
   }
 

@@ -3,7 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AthloFit helps you set a fitness goal, see where you stand, and know what to do next."
+    />
+    <meta name="theme-color" content="#0f1418" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>AthloFit.in</title>
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -11,34 +19,34 @@
       <section class="hero">
         <div class="hero-shell">
           <div class="hero-copy">
-            <p class="eyebrow">Fitness Forecast Platform</p>
+            <p class="eyebrow">Guided fitness, made simple</p>
             <h1>AthloFit<span class="brand-accent">.in</span></h1>
             <p class="intro">
-              Train across running, strength, conditioning, and hybrid fitness with
-              one place to track activity, understand readiness, and plan what to do next.
+              Set a goal, see where you stand today, and get the next step that keeps
+              you moving forward without the clutter of a typical fitness app.
             </p>
             <div class="hero-highlights" aria-label="Product highlights">
-              <span class="highlight-pill">Forecast goals</span>
-              <span class="highlight-pill">Track calories</span>
-              <span class="highlight-pill">Sync your account</span>
+              <span class="highlight-pill">Know your goal</span>
+              <span class="highlight-pill">Log in seconds</span>
+              <span class="highlight-pill">Stay on track</span>
             </div>
           </div>
 
           <aside class="hero-card panel">
-            <p class="card-kicker">Why it feels different</p>
-            <h2>Your training, turned into a next step.</h2>
+            <p class="card-kicker">What AthloFit does</p>
+            <h2>Less tracking noise. More clear guidance.</h2>
             <div class="hero-points">
               <article class="hero-point">
-                <span class="hero-point-label">Readiness</span>
-                <p>See how close you are to a distance or time goal instead of just logging workouts.</p>
+                <span class="hero-point-label">Goal</span>
+                <p>Choose the target you care about, from a comfortable distance to a time-based running goal.</p>
               </article>
               <article class="hero-point">
-                <span class="hero-point-label">Range</span>
-                <p>Keep running, strength, HIIT, HYROX, and general fitness activity in one account.</p>
+                <span class="hero-point-label">Today</span>
+                <p>See where you stand right now, what your week looks like, and what to do next.</p>
               </article>
               <article class="hero-point">
-                <span class="hero-point-label">Clarity</span>
-                <p>Know what to do this week with a dashboard built around targets, trends, and momentum.</p>
+                <span class="hero-point-label">Progress</span>
+                <p>Keep your activity, profile, and forecast in one account so momentum stays visible over time.</p>
               </article>
             </div>
           </aside>
@@ -56,50 +64,71 @@
         <section class="section-heading">
           <div>
             <p class="eyebrow">Overview</p>
-            <h2>Your command center</h2>
+            <h2>Your next step, at a glance</h2>
           </div>
-          <p class="section-note">The fastest read on your goal, energy target, training load, and current momentum.</p>
+          <p class="section-note">Open the app and instantly see your goal, your current readiness, this week's progress, and what to do next.</p>
         </section>
 
-        <section class="dashboard-grid">
+        <section class="dashboard-grid primary-dashboard-grid">
           <article class="dashboard-card main-card">
             <p class="card-kicker">Current goal</p>
             <h2 id="dashboardGoal">Comfortable 21.1 km</h2>
             <p id="dashboardForecast" class="dashboard-note">Add activities and analyze to see your forecast.</p>
+            <p id="dashboardTrack" class="dashboard-status-pill">Start by logging a workout.</p>
           </article>
           <article class="dashboard-card soft-accent-card">
-            <p class="card-kicker">Calories</p>
-            <p id="dashboardCalories" class="dashboard-number">-</p>
-            <p id="dashboardProtein" class="dashboard-note">Complete your profile.</p>
+            <p class="card-kicker">Readiness</p>
+            <p id="dashboardReadiness" class="dashboard-number">-</p>
+            <p id="dashboardReadinessNote" class="dashboard-note">Log 3 running workouts to unlock your first running forecast.</p>
           </article>
           <article class="dashboard-card">
             <p class="card-kicker">This week</p>
             <p id="dashboardWeek" class="dashboard-number">0 km</p>
-            <p id="dashboardStreak" class="dashboard-note">0 day streak</p>
-          </article>
-          <article class="dashboard-card">
-            <p class="card-kicker">Recent activity</p>
-            <p id="dashboardRecent" class="dashboard-number">-</p>
-            <p id="dashboardNext" class="dashboard-note">Next target appears after analysis.</p>
+            <p id="dashboardWeekDetail" class="dashboard-note">Your weekly target will appear here.</p>
           </article>
         </section>
 
-        <section class="dashboard-grid secondary-grid">
+        <section class="dashboard-grid secondary-dashboard-grid">
           <article class="dashboard-card">
-            <p class="card-kicker">Energy target</p>
-            <p id="dashboardMaintenance" class="dashboard-number">-</p>
-            <p class="dashboard-note">Maintenance calories</p>
-          </article>
-          <article class="dashboard-card soft-accent-card">
-            <p class="card-kicker">Training load</p>
-            <p id="dashboardBurn" class="dashboard-number">0 kcal</p>
-            <p class="dashboard-note">Estimated weekly burn from logged activity</p>
+            <p class="card-kicker">Today's recommendation</p>
+            <p id="dashboardToday" class="dashboard-copy">Log your first workout</p>
+            <p id="dashboardTodayHint" class="dashboard-note">The app gets smarter as you stay consistent.</p>
           </article>
           <article class="dashboard-card">
-            <p class="card-kicker">Profile status</p>
-            <p id="dashboardProfile" class="dashboard-number">-</p>
-            <p class="dashboard-note">Complete profile unlocks smarter guidance</p>
+            <p class="card-kicker">Momentum</p>
+            <p id="dashboardStreak" class="dashboard-number">0 day streak</p>
+            <p id="dashboardRecent" class="dashboard-note">Your latest workout will show up here.</p>
           </article>
+        </section>
+
+        <section id="dashboardOnboarding" class="panel onboarding-panel">
+          <div class="manual-header">
+            <div>
+              <p class="eyebrow">Start here</p>
+              <h2>Get value from AthloFit in 3 steps</h2>
+            </div>
+            <p class="section-note onboarding-note">The app gets more useful as soon as your profile, first workout, and first forecast are in place.</p>
+          </div>
+          <div class="onboarding-grid">
+            <article class="onboarding-step">
+              <span id="onboardingProfileStatus" class="step-badge">Next</span>
+              <h3>Complete your profile</h3>
+              <p>Age, height, weight, and goal help AthloFit make better calorie and readiness guidance.</p>
+              <button type="button" class="secondary-button view-shortcut" data-view-shortcut="profile">Open profile</button>
+            </article>
+            <article class="onboarding-step">
+              <span id="onboardingActivityStatus" class="step-badge">Next</span>
+              <h3>Log your first workout</h3>
+              <p>Add one activity in seconds. Running entries unlock the current forecast engine.</p>
+              <button type="button" class="secondary-button view-shortcut" data-view-shortcut="log">Log activity</button>
+            </article>
+            <article class="onboarding-step">
+              <span id="onboardingForecastStatus" class="step-badge">Next</span>
+              <h3>Check your forecast</h3>
+              <p>See whether you're on track and what distance or target week to aim for next.</p>
+              <button type="button" class="secondary-button view-shortcut" data-view-shortcut="forecast">Open plan</button>
+            </article>
+          </div>
         </section>
       </section>
 
@@ -107,44 +136,16 @@
         <section class="panel manual-panel">
           <div class="manual-header">
             <div>
-              <h2 id="manualPanelHeading">Log activity manually</h2>
+              <h2 id="manualPanelHeading">Log a workout</h2>
               <p id="manualPanelHint" class="hint">
-                Use the sliders to log a workout quickly. Running entries power the current running forecast,
-                while all activity types feed your dashboard and training history.
-                <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>
+                Keep this quick. Add the workout you just did, save it, and head to the plan tab whenever you want to refresh your forecast.
               </p>
             </div>
             <div class="header-actions">
               <p id="editStateBadge" class="mode-badge">New activity</p>
-              <button id="useManualButton" type="button">Analyze logged data</button>
             </div>
           </div>
           <p id="status" class="status">Ready for your first activity.</p>
-
-          <div class="settings-grid">
-            <label>
-              Forecast mode
-              <select id="forecastMode">
-                <option value="comfort">Comfortable distance</option>
-                <option value="race">Race target</option>
-              </select>
-            </label>
-            <label class="slider-field">
-              <span class="slider-head">
-                <span>Goal distance</span>
-                <strong id="goalDistanceValue">21.1 km</strong>
-              </span>
-              <input id="goalDistance" type="range" min="1" max="42.2" step="0.5" value="21.1" />
-            </label>
-            <label>
-              Target time
-              <input id="targetTime" type="text" placeholder="00:30:00 for 5K under 30" />
-            </label>
-            <label>
-              Goal date
-              <input id="goalDate" type="date" />
-            </label>
-          </div>
 
           <form id="manualForm" class="manual-form">
             <label>
@@ -194,45 +195,87 @@
             </div>
           </form>
 
-          <div class="manual-grid">
-            <div>
-              <label for="bulkRuns" class="upload-label">Quick add many runs (advanced)</label>
-              <textarea
-                id="bulkRuns"
-                rows="8"
-                placeholder="2026-04-01, 8.2, 00:49:10&#10;2026-04-03, 5.0, 00:31:20&#10;2026-04-07, 12.5, 01:19:45"
-              ></textarea>
-            </div>
-            <div>
-              <div class="runs-header">
-                <label class="upload-label">Logged activities</label>
-                <button id="clearRunsButton" type="button" class="secondary-button">Clear all</button>
-              </div>
-              <div id="manualRunsEmpty" class="empty-state">No activities yet.</div>
-              <div class="table-wrap manual-runs-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Date</th>
-                      <th>Distance</th>
-                      <th>Time</th>
-                      <th>Calories</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="manualRunsBody"></tbody>
-                </table>
-              </div>
-            </div>
+          <div class="runs-header">
+            <label class="upload-label">Logged activities</label>
+            <button id="clearRunsButton" type="button" class="secondary-button">Clear all</button>
           </div>
+          <div id="manualRunsEmpty" class="empty-state">No activities yet. Log one workout to start building your plan.</div>
+          <div class="table-wrap manual-runs-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Distance</th>
+                  <th>Time</th>
+                  <th>Calories</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="manualRunsBody"></tbody>
+            </table>
+          </div>
+
+          <details class="advanced-panel">
+            <summary>Advanced: paste many running entries</summary>
+            <p class="hint">Use one line per run in <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code> format.</p>
+            <textarea
+              id="bulkRuns"
+              rows="8"
+              placeholder="2026-04-01, 8.2, 00:49:10&#10;2026-04-03, 5.0, 00:31:20&#10;2026-04-07, 12.5, 01:19:45"
+            ></textarea>
+          </details>
         </section>
       </section>
 
       <section class="app-view" data-view="forecast">
+        <section class="panel forecast-setup-panel">
+          <div class="manual-header">
+            <div>
+              <h2>Plan and forecast</h2>
+              <p class="hint">
+                Choose the target you care about, then update your forecast to see how ready you are and what this week should look like.
+              </p>
+            </div>
+            <div class="header-actions">
+              <p id="forecastStatusBadge" class="mode-badge">Comfort forecast</p>
+              <button id="useManualButton" type="button">Update forecast</button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <label>
+              Forecast mode
+              <select id="forecastMode">
+                <option value="comfort">Comfortable distance</option>
+                <option value="race">Race target</option>
+              </select>
+            </label>
+            <label class="slider-field">
+              <span class="slider-head">
+                <span>Goal distance</span>
+                <strong id="goalDistanceValue">21.1 km</strong>
+              </span>
+              <input id="goalDistance" type="range" min="1" max="42.2" step="0.5" value="21.1" />
+            </label>
+            <label>
+              Target time
+              <input id="targetTime" type="text" placeholder="00:30:00 for 5K under 30" />
+            </label>
+            <label>
+              Goal date
+              <input id="goalDate" type="date" />
+            </label>
+          </div>
+        </section>
+
         <section id="forecastEmpty" class="panel empty-panel">
-          <h2>Forecast</h2>
-          <p class="goal-summary">Log a few workouts, set a goal, and analyze your data to unlock the forecast view.</p>
+          <p class="eyebrow">Plan</p>
+          <h2>Your forecast unlocks after a few runs</h2>
+          <p class="goal-summary">Log 3 running workouts, set the target you care about, and AthloFit will tell you how ready you are and what to do next this week.</p>
+          <div class="empty-actions">
+            <button type="button" class="secondary-button view-shortcut" data-view-shortcut="log">Log a workout</button>
+          </div>
         </section>
 
         <section id="results" class="results hidden">

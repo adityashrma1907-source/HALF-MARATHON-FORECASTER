@@ -33,7 +33,8 @@ const resendVerificationButton = document.getElementById("resendVerificationButt
 const accountStatus = document.getElementById("accountStatus");
 const accountSecurityNote = document.getElementById("accountSecurityNote");
 const forecastEmptySection = document.getElementById("forecastEmpty");
-const navButtons = [...document.querySelectorAll("[data-view-target]")];
+const navButtons = [...document.querySelectorAll(".app-nav [data-view-target]")];
+const viewShortcutButtons = [...document.querySelectorAll("[data-view-shortcut]")];
 const appViews = [...document.querySelectorAll("[data-view]")];
 const profileInputs = {
   name: document.getElementById("profileName"),
@@ -48,16 +49,22 @@ const profileInputs = {
 const dashboardElements = {
   goal: document.getElementById("dashboardGoal"),
   forecast: document.getElementById("dashboardForecast"),
-  calories: document.getElementById("dashboardCalories"),
-  protein: document.getElementById("dashboardProtein"),
+  track: document.getElementById("dashboardTrack"),
+  readiness: document.getElementById("dashboardReadiness"),
+  readinessNote: document.getElementById("dashboardReadinessNote"),
   week: document.getElementById("dashboardWeek"),
+  weekDetail: document.getElementById("dashboardWeekDetail"),
+  today: document.getElementById("dashboardToday"),
+  todayHint: document.getElementById("dashboardTodayHint"),
   streak: document.getElementById("dashboardStreak"),
   recent: document.getElementById("dashboardRecent"),
-  next: document.getElementById("dashboardNext"),
+  onboardingPanel: document.getElementById("dashboardOnboarding"),
+  onboardingProfileStatus: document.getElementById("onboardingProfileStatus"),
+  onboardingActivityStatus: document.getElementById("onboardingActivityStatus"),
+  onboardingForecastStatus: document.getElementById("onboardingForecastStatus"),
+};
+const profileSummaryElements = {
   calorieSummary: document.getElementById("calorieSummary"),
-  maintenance: document.getElementById("dashboardMaintenance"),
-  burn: document.getElementById("dashboardBurn"),
-  profile: document.getElementById("dashboardProfile"),
   calorieTargetCard: document.getElementById("calorieTargetCard"),
   calorieMaintenanceCard: document.getElementById("calorieMaintenanceCard"),
   proteinCard: document.getElementById("proteinCard"),
@@ -68,6 +75,7 @@ const sliderValueElements = {
   runDuration: document.getElementById("runDurationValue"),
   activityCalories: document.getElementById("activityCaloriesValue"),
 };
+const forecastStatusBadge = document.getElementById("forecastStatusBadge");
 
 const activities = [];
 const manualRuns = activities;
@@ -208,6 +216,10 @@ for (const button of navButtons) {
   button.addEventListener("click", () => setActiveView(button.dataset.viewTarget));
 }
 
+for (const button of viewShortcutButtons) {
+  button.addEventListener("click", () => setActiveView(button.dataset.viewShortcut));
+}
+
 forecastModeInput.addEventListener("change", () => {
   renderDashboard();
   void saveAppState();
@@ -264,6 +276,7 @@ window.addEventListener("offline", () => {
 initializeApp();
 
 async function initializeApp() {
+  registerServiceWorker();
   loadLocalState();
   if (!goalDateInput.value) {
     goalDateInput.value = formatInputDate(addDays(new Date(), 84));
@@ -278,6 +291,18 @@ async function initializeApp() {
   syncSliderDisplays();
   updateAccountUI();
   await restoreSessionAndSync();
+}
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((error) => {
+      console.error("Service worker registration failed", error);
+    });
+  });
 }
 
 async function restoreSessionAndSync() {
@@ -380,7 +405,7 @@ function clearSession() {
 function updateAccountUI() {
   const signedIn = Boolean(authState.token);
   accountStatus.textContent = signedIn
-    ? `Signed in as ${authState.email}${authState.emailVerified ? " • Verified" : " • Unverified"}`
+    ? `Signed in as ${authState.email}${authState.emailVerified ? " - Verified" : " - Unverified"}`
     : "Not signed in";
   logoutButton.style.display = signedIn ? "inline-flex" : "none";
   resendVerificationButton.style.display = signedIn && !authState.emailVerified ? "inline-flex" : "none";
@@ -737,7 +762,7 @@ function startEditingActivity(activity) {
   cancelEditButton.classList.remove("hidden-button");
   editStateBadge.textContent = `Editing ${formatActivityType(activity.type)}`;
   manualPanelHeading.textContent = "Edit activity";
-  manualPanelHint.textContent = "Update the activity, save changes, or cancel to go back to new activity mode.";
+  manualPanelHint.textContent = "Update the workout, save your changes, or cancel to go back to quick logging.";
   setActiveView("log");
   runDateInput.focus();
 }
@@ -754,9 +779,9 @@ function resetActivityForm() {
   addRunButton.textContent = "Add activity";
   cancelEditButton.classList.add("hidden-button");
   editStateBadge.textContent = "New activity";
-  manualPanelHeading.textContent = "Log activity manually";
-  manualPanelHint.innerHTML =
-    'Use the sliders to log a workout quickly. Running entries power the current running forecast, while all activity types feed your dashboard and history. <code>YYYY-MM-DD, distance in km, time hh:mm:ss</code>';
+  manualPanelHeading.textContent = "Log a workout";
+  manualPanelHint.textContent =
+    "Keep this quick. Add the workout you just did, save it, and head to the plan tab whenever you want to refresh your forecast.";
 }
 
 function getProfileState() {
@@ -948,49 +973,183 @@ function renderDashboard() {
   const runs = getRunActivities();
   const thisWeekActivities = getActivitiesThisWeek();
   const thisWeekKm = thisWeekActivities.reduce((sum, activity) => sum + (activity.distanceKm || 0), 0);
-  const latestActivity = [...activities].sort((a, b) => b.date - a.date)[0];
-  const targetConfig = getTargetConfig({
-    mode: forecastModeInput.value,
-    goalDistanceKm: Number.parseFloat(goalDistanceInput.value) || 21.1,
-    targetTimeSeconds: parseTargetTimeToSeconds(targetTimeInput.value),
+  const latestActivity = [...activities].sort((a, b) => b.date - a.date)[0] || null;
+  const targetConfig = getCurrentTargetConfig();
+  const weeklyTarget = latestAnalysis?.weeklyTargets?.[0] || null;
+  const weekTargetKm = weeklyTarget?.weeklyKm || 0;
+  const weekProgressRatio = weekTargetKm > 0 ? clamp(thisWeekKm / weekTargetKm, 0, 1.3) : 0;
+  const profileCompletion = getCompletedProfileFields(profile);
+  const streak = getActivityStreak();
+  const todayRecommendation = getTodayRecommendation({
+    latestAnalysis,
+    thisWeekKm,
+    weeklyTarget,
+    streak,
+    runsCount: runs.length,
+    profileCompletion,
   });
 
   dashboardElements.goal.textContent = getGoalLabel(targetConfig);
   dashboardElements.forecast.textContent = latestAnalysis
-    ? `${formatDate(latestAnalysis.forecastDate)} forecast with ${latestAnalysis.readinessScore}/100 readiness`
-    : `${runs.length} running entr${runs.length === 1 ? "y" : "ies"} ready for analysis`;
+    ? `${formatDate(latestAnalysis.forecastDate)} forecast with ${latestAnalysis.confidence.toLowerCase()} confidence`
+    : runs.length >= 3
+      ? "You have enough running data to generate a forecast."
+      : `${Math.max(0, 3 - runs.length)} more running entr${Math.max(0, 3 - runs.length) === 1 ? "y" : "ies"} to unlock your forecast.`;
+  dashboardElements.track.textContent = getTrackStatus({
+    latestAnalysis,
+    weeklyTarget,
+    weekProgressRatio,
+    runsCount: runs.length,
+  });
+  dashboardElements.readiness.textContent = latestAnalysis ? `${latestAnalysis.readinessScore}/100` : "-";
+  dashboardElements.readinessNote.textContent = latestAnalysis
+    ? latestAnalysis.readinessLabel
+    : "Log 3 running workouts to unlock your first running forecast.";
   dashboardElements.week.textContent = `${round1(thisWeekKm)} km`;
-  dashboardElements.streak.textContent = `${getActivityStreak()} day streak`;
+  dashboardElements.weekDetail.textContent = getWeeklyProgressCopy({
+    latestAnalysis,
+    weeklyTarget,
+    thisWeekKm,
+  });
+  dashboardElements.today.textContent = todayRecommendation.title;
+  dashboardElements.todayHint.textContent = todayRecommendation.detail;
+  dashboardElements.streak.textContent = `${streak} day streak`;
   dashboardElements.recent.textContent = latestActivity
-    ? `${formatActivityType(latestActivity.type)} ${latestActivity.distanceKm ? formatKm(latestActivity.distanceKm) : formatDuration(latestActivity.movingSeconds)}`
-    : "-";
-  dashboardElements.next.textContent = latestAnalysis?.weeklyTargets?.[0]
-    ? `${formatKm(latestAnalysis.weeklyTargets[0].weeklyKm)} week, ${formatKm(latestAnalysis.weeklyTargets[0].longRunKm)} long run`
-    : "Analyze your running data for the next target.";
+    ? `${formatActivityType(latestActivity.type)} on ${formatDate(latestActivity.date)}${latestActivity.distanceKm ? ` - ${formatKm(latestActivity.distanceKm)}` : ` - ${formatDuration(latestActivity.movingSeconds)}`}`
+    : "Your latest workout will show up here.";
 
   if (caloriePlan) {
-    dashboardElements.calories.textContent = `${caloriePlan.targetCalories} kcal`;
-    dashboardElements.protein.textContent = `${caloriePlan.proteinGrams} g protein/day`;
-    dashboardElements.calorieSummary.textContent = `${caloriePlan.targetCalories} kcal | ${caloriePlan.proteinGrams} g protein`;
-    dashboardElements.maintenance.textContent = `${caloriePlan.maintenance} kcal`;
-    dashboardElements.burn.textContent = `${Math.round(getEstimatedWeeklyBurn())} kcal`;
-    dashboardElements.profile.textContent = profile.name || "Ready";
-    dashboardElements.calorieTargetCard.textContent = `${caloriePlan.targetCalories} kcal`;
-    dashboardElements.calorieMaintenanceCard.textContent = `${caloriePlan.maintenance} kcal`;
-    dashboardElements.proteinCard.textContent = `${caloriePlan.proteinGrams} g`;
+    profileSummaryElements.calorieSummary.textContent = `${caloriePlan.targetCalories} kcal | ${caloriePlan.proteinGrams} g protein`;
+    profileSummaryElements.calorieTargetCard.textContent = `${caloriePlan.targetCalories} kcal`;
+    profileSummaryElements.calorieMaintenanceCard.textContent = `${caloriePlan.maintenance} kcal`;
+    profileSummaryElements.proteinCard.textContent = `${caloriePlan.proteinGrams} g`;
   } else {
-    dashboardElements.calories.textContent = "-";
-    dashboardElements.protein.textContent = "Complete age, sex, height, and weight.";
-    dashboardElements.calorieSummary.textContent = "Profile incomplete";
-    dashboardElements.maintenance.textContent = "-";
-    dashboardElements.burn.textContent = `${Math.round(getEstimatedWeeklyBurn())} kcal`;
-    dashboardElements.profile.textContent = `${getCompletedProfileFields(profile)}/8`;
-    dashboardElements.calorieTargetCard.textContent = "-";
-    dashboardElements.calorieMaintenanceCard.textContent = "-";
-    dashboardElements.proteinCard.textContent = "-";
+    profileSummaryElements.calorieSummary.textContent = `Profile ${profileCompletion}/8 complete`;
+    profileSummaryElements.calorieTargetCard.textContent = "-";
+    profileSummaryElements.calorieMaintenanceCard.textContent = "-";
+    profileSummaryElements.proteinCard.textContent = "-";
   }
 
+  renderOnboarding({
+    profileCompletion,
+    activitiesCount: activities.length,
+    hasForecast: Boolean(latestAnalysis),
+  });
+  renderForecastSetup();
+
   syncForecastVisibility();
+}
+
+function getCurrentTargetConfig() {
+  return getTargetConfig({
+    mode: forecastModeInput.value,
+    goalDistanceKm: Number.parseFloat(goalDistanceInput.value) || 21.1,
+    targetTimeSeconds: parseTargetTimeToSeconds(targetTimeInput.value),
+  });
+}
+
+function getTrackStatus({ latestAnalysis, weeklyTarget, weekProgressRatio, runsCount }) {
+  if (!latestAnalysis) {
+    return runsCount >= 3 ? "Forecast ready to update" : "Start by logging a workout";
+  }
+
+  if (!weeklyTarget) {
+    return "Forecast ready";
+  }
+
+  if (weekProgressRatio >= 1) {
+    return "On track this week";
+  }
+  if (weekProgressRatio >= 0.6) {
+    return "Close to target";
+  }
+
+  return "Time to build momentum";
+}
+
+function getWeeklyProgressCopy({ latestAnalysis, weeklyTarget, thisWeekKm }) {
+  if (!latestAnalysis || !weeklyTarget) {
+    return "Your weekly target will appear after analysis.";
+  }
+
+  const remainingKm = Math.max(0, weeklyTarget.weeklyKm - thisWeekKm);
+  if (remainingKm <= 0.5) {
+    return `Weekly target hit. Long run aim: ${formatKm(weeklyTarget.longRunKm)}.`;
+  }
+  if (thisWeekKm <= 0) {
+    return `Aim for ${formatKm(weeklyTarget.weeklyKm)} this week.`;
+  }
+
+  return `${formatKm(remainingKm)} left to reach this week's target.`;
+}
+
+function getTodayRecommendation({ latestAnalysis, thisWeekKm, weeklyTarget, streak, runsCount, profileCompletion }) {
+  if (profileCompletion < 4) {
+    return {
+      title: "Complete your profile",
+      detail: "A more complete profile gives you better calorie and readiness guidance.",
+    };
+  }
+
+  if (!activities.length) {
+    return {
+      title: "Log your first workout",
+      detail: "One workout is enough to start building your activity history and weekly rhythm.",
+    };
+  }
+
+  if (runsCount < 3) {
+    return {
+      title: "Add another running workout",
+      detail: `${Math.max(0, 3 - runsCount)} more run${Math.max(0, 3 - runsCount) === 1 ? "" : "s"} unlock${Math.max(0, 3 - runsCount) === 1 ? "s" : ""} your first forecast.`,
+    };
+  }
+
+  if (!latestAnalysis) {
+    return {
+      title: "Refresh your forecast",
+      detail: "Your running data is ready. Update the plan tab to see readiness and weekly targets.",
+    };
+  }
+
+  if (weeklyTarget) {
+    const remainingKm = Math.max(0, weeklyTarget.weeklyKm - thisWeekKm);
+    if (remainingKm > 0.5) {
+      return {
+        title: `Close ${formatKm(remainingKm)} this week`,
+        detail: `That keeps you on pace for a ${formatKm(weeklyTarget.longRunKm)} long run.`,
+      };
+    }
+  }
+
+  return streak > 0
+    ? {
+        title: "Keep the streak alive",
+        detail: "A small easy session or recovery walk is enough if your week target is already on track.",
+      }
+    : {
+        title: "Check in with one workout today",
+        detail: "Consistency matters more than perfect volume in the early stage.",
+      };
+}
+
+function renderOnboarding({ profileCompletion, activitiesCount, hasForecast }) {
+  updateStepBadge(dashboardElements.onboardingProfileStatus, profileCompletion >= 4);
+  updateStepBadge(dashboardElements.onboardingActivityStatus, activitiesCount > 0);
+  updateStepBadge(dashboardElements.onboardingForecastStatus, hasForecast);
+
+  const showOnboarding = profileCompletion < 4 || activitiesCount === 0 || !hasForecast;
+  dashboardElements.onboardingPanel.classList.toggle("hidden", !showOnboarding);
+}
+
+function updateStepBadge(element, complete) {
+  element.textContent = complete ? "Done" : "Next";
+  element.classList.toggle("done", complete);
+  element.classList.toggle("active", !complete);
+}
+
+function renderForecastSetup() {
+  forecastStatusBadge.textContent = forecastModeInput.value === "race" ? "Race target" : "Comfort forecast";
 }
 
 function calculateCaloriePlan(profile) {
@@ -1072,6 +1231,13 @@ function getActivityStreak() {
 
   const activeDays = new Set(activities.map((activity) => formatInputDate(activity.date)));
   let cursor = startOfDay(new Date());
+  if (!activeDays.has(formatInputDate(cursor))) {
+    const yesterday = addDays(cursor, -1);
+    if (!activeDays.has(formatInputDate(yesterday))) {
+      return 0;
+    }
+    cursor = yesterday;
+  }
   let streak = 0;
 
   while (activeDays.has(formatInputDate(cursor))) {
